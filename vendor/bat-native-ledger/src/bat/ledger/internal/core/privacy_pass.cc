@@ -6,6 +6,7 @@
 #include "bat/ledger/internal/core/privacy_pass.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace ledger {
@@ -104,7 +105,7 @@ absl::optional<std::vector<std::string>> PrivacyPass::UnblindTokens(
   return unblinded_tokens;
 }
 
-absl::optional<PrivacyPass::Redemption> PrivacyPass::GetRedemption(
+absl::optional<PrivacyPass::Redemption> PrivacyPass::SignMessage(
     const std::string& unblinded_token,
     const std::string& message) {
   auto unblinded = UnblindedToken::decode_base64(unblinded_token);
@@ -114,13 +115,16 @@ absl::optional<PrivacyPass::Redemption> PrivacyPass::GetRedemption(
   }
 
   auto signed_message = unblinded.derive_verification_key().sign(message);
-  if (ErrorOccurred()) {
+  std::string preimage = unblinded.preimage().encode_base64();
+  std::string signature = signed_message.encode_base64();
+
+  if (ErrorOccurred() || preimage.empty() || signature.empty()) {
     context().LogError(FROM_HERE) << "Error signing message";
     return {};
   }
 
-  return Redemption{.preimage = unblinded.preimage().encode_base64(),
-                    .signature = signed_message.encode_base64()};
+  return Redemption{.preimage = std::move(preimage),
+                    .signature = std::move(signature)};
 }
 
 bool PrivacyPass::ErrorOccurred() {

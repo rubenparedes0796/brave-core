@@ -69,7 +69,7 @@ class JobStore : public BATLedgerContext::Object {
     return T::FromValue(*value);
   }
 
-  void DeleteState(const std::string& job_id);
+  void OnJobCompleted(const std::string& job_id);
 
   std::vector<std::string> GetActiveJobs(const std::string& job_type);
 
@@ -97,7 +97,7 @@ class ResumableJob : public BATLedgerJob<R> {
   }
 
   void Complete(R result) override {
-    GetJobStore().DeleteState(job_id_);
+    GetJobStore().OnJobCompleted(job_id_);
     BATLedgerJob<R>::Complete(std::move(result));
   }
 

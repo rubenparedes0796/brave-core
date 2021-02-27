@@ -75,21 +75,10 @@ std::string StringifyEnum(ACStatus value) {
   }
 }
 
-void ParseEnum(const std::string& s, absl::optional<ACStatus>* value) {
-  DCHECK(value);
-  if (s == "pending") {
-    *value = ACStatus::kPending;
-  } else if (s == "purchasing") {
-    *value = ACStatus::kPurchasing;
-  } else if (s == "purchased") {
-    *value = ACStatus::kPurchased;
-  } else if (s == "sending") {
-    *value = ACStatus::kSending;
-  } else if (s == "complete") {
-    *value = ACStatus::kComplete;
-  } else {
-    *value = {};
-  }
+absl::optional<ACStatus> ParseEnum(const EnumString<ACStatus>& s) {
+  return s.Match({ACStatus::kPending, ACStatus::kPurchasing,
+                  ACStatus::kPurchased, ACStatus::kSending,
+                  ACStatus::kComplete});
 }
 
 struct ACState {
@@ -99,6 +88,7 @@ struct ACState {
   double amount = 0;
   std::string purchase_job_id;
   std::vector<int64_t> reserved_tokens;
+  std::string error;
 
   auto ToValue() const {
     ValueWriter w;
@@ -108,6 +98,7 @@ struct ACState {
     w.Write("amount", amount);
     w.Write("purchase_job_id", purchase_job_id);
     w.Write("reserved_tokens", reserved_tokens);
+    w.Write("error", error);
     return w.Finish();
   }
 
@@ -119,6 +110,7 @@ struct ACState {
     r.Read("amount", &ACState::amount);
     r.Read("purchase_job_id", &ACState::purchase_job_id);
     r.Read("reserved_tokens", &ACState::reserved_tokens);
+    r.Read("error", &ACState::error);
     return r.Finish();
   }
 };
@@ -147,9 +139,7 @@ class ACJob : public ResumableJob<bool, ACState> {
   }
 
   void OnStateInvalid() override {
-    context().LogError(FROM_HERE) << "Unable to load state for auto "
-                                     "contribute job";
-    Complete(false);
+    CompleteWithError("Unable to load state for auto contribute job");
   }
 
  private:
@@ -159,9 +149,8 @@ class ACJob : public ResumableJob<bool, ACState> {
         ReserveTokens();
         break;
       case ContributionSource::kBraveSKU:
-        context().LogError(FROM_HERE) << "Cannot perform auto contribute with "
-                                      << "SKU tokens";
-        return Complete(false);
+        return CompleteWithError(
+            "Cannot perform auto contribute with SKU tokens");
       case ContributionSource::kExternal:
         context().Get<ExternalWalletManager>().GetBalance().Then(
             ContinueWith(this, &ACJob::OnExternalBalanceRead));
@@ -195,8 +184,7 @@ class ACJob : public ResumableJob<bool, ACState> {
 
   void OnTokensPurchased(bool success) {
     if (!success) {
-      context().LogError(FROM_HERE) << "Error purchasing contribution tokens";
-      return Complete(false);
+      return CompleteWithError("Error purchasing contribution tokens");
     }
     state().status = ACStatus::kPurchased;
     SaveState();
@@ -213,9 +201,12 @@ class ACJob : public ResumableJob<bool, ACState> {
   void OnTokensReserved(ContributionTokenHold hold) {
     hold_ = std::move(hold);
 
-    // TODO(zenparsing): There's an error condition here. If a purchase worked
-    // but we aren't able to hold anything for some reason.
     if (hold_.tokens().empty()) {
+      if (state().source == ContributionSource::kExternal) {
+        return CompleteWithError(
+            "Expected auto contribute tokens were not found");
+      }
+
       context().LogInfo(FROM_HERE) << "No tokens available for auto "
                                       "contribution";
       return Complete(true);
@@ -225,10 +216,7 @@ class ACJob : public ResumableJob<bool, ACState> {
       state().reserved_tokens.push_back(token.id);
     }
 
-    // TODO(zenparsing): Before allocating, we need to filter out any publishers
-    // that are not registered.
-
-    // TODO(zenparsing): This dance seems a little unwieldy.
+    // TODO(zenparsing): This dance seems a little unwieldy. Can we improve it?
     std::map<std::string, double> weights;
     for (auto& publisher_state : state().publishers) {
       weights[publisher_state.publisher_id] = publisher_state.weight;
@@ -289,13 +277,10 @@ class ACJob : public ResumableJob<bool, ACState> {
 
   void OnContributionProcessed(bool success) {
     if (!success) {
-      // TODO(zenparsing): This will retry forever. Is that what we want? What
-      // if the tokens have already been spent for some reason? In that case we
-      // should just carry on with the next publisher.
-      // TODO(zenparsing): Does this delay need to be random?
+      context().LogError(FROM_HERE) << "Unable to send contribution";
       context()
           .Get<DelayGenerator>()
-          .RandomDelay(FROM_HERE, backoff_.GetNextDelay())
+          .Delay(FROM_HERE, backoff_.GetNextDelay())
           .DiscardValueThen(ContinueWith(this, &ACJob::SendNext));
       return;
     }
@@ -329,6 +314,12 @@ class ACJob : public ResumableJob<bool, ACState> {
       default:
         return state().source;
     }
+  }
+
+  void CompleteWithError(const std::string& error) {
+    context().LogError(FROM_HERE) << error;
+    state().error = error;
+    Complete(false);
   }
 
   ContributionTokenHold hold_;

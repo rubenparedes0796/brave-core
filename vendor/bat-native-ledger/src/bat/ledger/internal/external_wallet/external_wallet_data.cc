@@ -29,20 +29,6 @@ bool IsMojoWalletActive(const mojom::ExternalWallet& wallet) {
 
 }  // namespace
 
-void ParseEnum(const std::string& s,
-               absl::optional<ExternalWalletProvider>* value) {
-  DCHECK(value);
-  if (s == "uphold") {
-    *value = ExternalWalletProvider::kUphold;
-  } else if (s == "gemini") {
-    *value = ExternalWalletProvider::kGemini;
-  } else if (s == "bitflyer") {
-    *value = ExternalWalletProvider::kBitflyer;
-  } else {
-    *value = {};
-  }
-}
-
 std::string StringifyEnum(ExternalWalletProvider value) {
   switch (value) {
     case ExternalWalletProvider::kUphold:
@@ -54,14 +40,20 @@ std::string StringifyEnum(ExternalWalletProvider value) {
   }
 }
 
+absl::optional<ExternalWalletProvider> ParseEnum(
+    const EnumString<ExternalWalletProvider>& s) {
+  return s.Match({ExternalWalletProvider::kUphold,
+                  ExternalWalletProvider::kGemini,
+                  ExternalWalletProvider::kBitflyer});
+}
+
 absl::optional<ExternalWallet> ExternalWallet::FromMojo(
     const mojom::ExternalWallet& wallet) {
   if (!IsMojoWalletActive(wallet)) {
     return {};
   }
 
-  absl::optional<ExternalWalletProvider> provider;
-  ParseEnum(wallet.type, &provider);
+  auto provider = EnumString<ExternalWalletProvider>::Parse(wallet.type);
   if (!provider) {
     return {};
   }

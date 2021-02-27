@@ -12,6 +12,7 @@
 #include "bat/ledger/internal/core/bat_ledger_context.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
+// challenge_bypass_ristretto_ffi
 #include "wrapper.hpp"
 
 namespace ledger {
@@ -45,8 +46,8 @@ class PrivacyPass : public BATLedgerContext::Object {
     std::string signature;
   };
 
-  absl::optional<Redemption> GetRedemption(const std::string& unblinded_token,
-                                           const std::string& message);
+  absl::optional<Redemption> SignMessage(const std::string& unblinded_token,
+                                         const std::string& message);
 
  private:
   bool ErrorOccurred();

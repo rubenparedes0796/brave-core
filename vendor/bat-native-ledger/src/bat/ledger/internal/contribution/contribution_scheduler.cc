@@ -6,7 +6,10 @@
 #include "bat/ledger/internal/contribution/contribution_scheduler.h"
 
 #include <algorithm>
+#include <map>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "bat/ledger/internal/contribution/auto_contribute_processor.h"
@@ -15,10 +18,12 @@
 #include "bat/ledger/internal/contribution/contribution_store.h"
 #include "bat/ledger/internal/core/bat_ledger_job.h"
 #include "bat/ledger/internal/core/delay_generator.h"
+#include "bat/ledger/internal/core/future_join.h"
 #include "bat/ledger/internal/core/job_store.h"
 #include "bat/ledger/internal/core/user_prefs.h"
 #include "bat/ledger/internal/core/value_converters.h"
 #include "bat/ledger/internal/ledger_impl.h"
+#include "bat/ledger/internal/publisher/publisher_service.h"
 
 namespace ledger {
 
@@ -50,40 +55,16 @@ struct RecurringContributionState {
   }
 };
 
-// TODO(zenparsing): It's a little odd how we use this struct only to provide a
-// serializable version of |PublisherActivity|. There are two other options:
-// 1. Make |PublisherActivity| serializable, or 2. Provide mapping functions to
-// |StructValueReader|.
-struct ActivityState {
-  std::string publisher_id;
-  int64_t visits = 0;
-  double duration = 0;
-
-  auto ToValue() const {
-    ValueWriter w;
-    w.Write("publisher_id", publisher_id);
-    w.Write("visits", visits);
-    w.Write("duration", duration);
-    return w.Finish();
-  }
-
-  static auto FromValue(const base::Value& value) {
-    StructValueReader<ActivityState> r(value);
-    r.Read("publisher_id", &ActivityState::publisher_id);
-    r.Read("visits", &ActivityState::visits);
-    r.Read("duration", &ActivityState::duration);
-    return r.Finish();
-  }
-};
-
 struct ScheduledContributionState {
   std::vector<RecurringContributionState> contributions;
-  std::vector<ActivityState> activity;
+  std::vector<PublisherActivity> activity;
+  std::string error;
 
   auto ToValue() const {
     ValueWriter w;
     w.Write("contributions", contributions);
     w.Write("activity", activity);
+    w.Write("error", error);
     return w.Finish();
   }
 
@@ -91,12 +72,12 @@ struct ScheduledContributionState {
     StructValueReader<ScheduledContributionState> r(value);
     r.Read("contributions", &ScheduledContributionState::contributions);
     r.Read("activity", &ScheduledContributionState::activity);
+    r.Read("error", &ScheduledContributionState::error);
     return r.Finish();
   }
 };
 
-class ScheduledContributionJob
-    : public ResumableJob<bool, ScheduledContributionState> {
+class ContributionJob : public ResumableJob<bool, ScheduledContributionState> {
  public:
   static constexpr char kJobType[] = "scheduled-contribution";
 
@@ -106,7 +87,7 @@ class ScheduledContributionJob
     SendNext();
   }
 
-  void OnStateInvalid() override { Complete(false); }
+  void OnStateInvalid() override { CompleteWithError("Invalid job state"); }
 
  private:
   void SendNext() {
@@ -125,13 +106,15 @@ class ScheduledContributionJob
         .SendContribution(ContributionType::kRecurring,
                           contribution_iter_->publisher_id,
                           contribution_iter_->amount)
-        .Then(
-            ContinueWith(this, &ScheduledContributionJob::OnContributionSent));
+        .Then(ContinueWith(this, &ContributionJob::OnContributionSent));
   }
 
   void OnContributionSent(bool success) {
     if (!success) {
-      // TODO(zenparsing): Comment explaining why we don't fail here.
+      // If we are unable to send this contribution for any reason, assume that
+      // the failure is unrecoverable (e.g. the publisher is not registered or
+      // verified with a matching wallet provider) and continue on with the next
+      // recurring contribution.
       context().LogError(FROM_HERE) << "Unable to send recurring contribution";
     }
 
@@ -141,58 +124,75 @@ class ScheduledContributionJob
   }
 
   void SendNextAfterDelay() {
-    // TODO(zenparsing): RandomDelay?
     context()
         .Get<DelayGenerator>()
-        .Delay(FROM_HERE, kContributionDelay)
-        .DiscardValueThen(
-            ContinueWith(this, &ScheduledContributionJob::SendNext));
+        .RandomDelay(FROM_HERE, kContributionDelay)
+        .DiscardValueThen(ContinueWith(this, &ContributionJob::SendNext));
   }
 
   void StartAutoContribute() {
-    context().Get<ContributionStore>().GetPublisherActivity().Then(
-        ContinueWith(this, &ScheduledContributionJob::OnActivityRead));
-  }
-
-  void OnActivityRead(std::vector<PublisherActivity> activity) {
-    context().Get<ContributionStore>().ResetPublisherActivity();
-
-    for (auto& entry : activity) {
-      state().activity.push_back(
-          ActivityState{.publisher_id = entry.publisher_id,
-                        .visits = entry.visits,
-                        .duration = entry.duration.InSecondsF()});
-    }
-
-    SaveState();
-
-    auto& prefs = context().Get<UserPrefs>();
-
-    if (!prefs.ac_enabled()) {
-      context().LogVerbose(FROM_HERE) << "Auto contribute not enabled";
+    if (!context().Get<UserPrefs>().ac_enabled()) {
+      context().LogVerbose(FROM_HERE) << "Auto contribute is not enabled";
       return Complete(true);
     }
 
     if (!context().options().auto_contribute_allowed) {
       context().LogVerbose(FROM_HERE)
-          << "Auto contribute not allowed for this client";
+          << "Auto contribute is not allowed for this client";
       return Complete(true);
     }
 
-    auto source = context().Get<ContributionRouter>().GetCurrentSource();
-    double ac_amount = prefs.ac_amount();
-
-    // TODO(zenparsing): Remove the dependency on state interface.
-    if (ac_amount <= 0) {
-      ac_amount = context().GetLedgerImpl()->state()->GetAutoContributeChoice();
+    // Load publisher data for each publisher that is in the activity list.
+    // Publishers will be removed from the activity list if they are not yet
+    // registered.
+    std::vector<std::string> publisher_ids;
+    for (auto& entry : state().activity) {
+      publisher_ids.push_back(entry.publisher_id);
     }
 
-    context().Get<AutoContributeProcessor>().SendContributions(
-        source, activity, prefs.ac_minimum_visits(),
-        prefs.ac_minimum_duration(), ac_amount);
+    context()
+        .Get<PublisherService>()
+        .GetPublishers(publisher_ids)
+        .Then(ContinueWith(this, &ContributionJob::OnPublishersLoaded));
+  }
 
-    // TODO(zenparsing): Note about why we don't wait for AC.
+  void OnPublishersLoaded(std::map<std::string, Publisher> publishers) {
+    std::vector<PublisherActivity> filtered_activity;
+    for (auto& entry : state().activity) {
+      auto iter = publishers.find(entry.publisher_id);
+      if (iter != publishers.end() && iter->second.registered) {
+        filtered_activity.push_back(entry);
+      }
+    }
+
+    auto& prefs = context().Get<UserPrefs>();
+    auto source = context().Get<ContributionRouter>().GetCurrentSource();
+
+    context().Get<AutoContributeProcessor>().SendContributions(
+        source, filtered_activity, prefs.ac_minimum_visits(),
+        prefs.ac_minimum_duration(), GetAutoContributeAmount());
+
+    // Auto-contribute is an independent process that maintains its own
+    // resumable state. Once we've started AC this job is complete.
     Complete(true);
+  }
+
+  double GetAutoContributeAmount() {
+    double ac_amount = context().Get<UserPrefs>().ac_amount();
+    if (ac_amount > 0) {
+      return ac_amount;
+    }
+
+    // TODO(zenparsing): Remove the dependency on state interface. This
+    // information actually comes from the Rewards backend configuration. We'll
+    // need a new service to provide us with this data.
+    return context().GetLedgerImpl()->state()->GetAutoContributeChoice();
+  }
+
+  void CompleteWithError(const std::string& error) {
+    context().LogError(FROM_HERE) << error;
+    state().error = error;
+    Complete(false);
   }
 
   std::vector<RecurringContributionState>::iterator contribution_iter_;
@@ -215,30 +215,39 @@ class SchedulerJob : public BATLedgerJob<bool> {
     context()
         .Get<DelayGenerator>()
         .Delay(FROM_HERE, next - base::Time::Now())
-        .Then(ContinueWith(this, &SchedulerJob::OnDelayElapsed));
+        .DiscardValueThen(ContinueWith(this, &SchedulerJob::OnDelayElapsed));
   }
 
-  void OnDelayElapsed(bool) {
-    context().Get<ContributionStore>().GetRecurringContributions().Then(
-        ContinueWith(this, &SchedulerJob::OnContributionsRead));
+  void OnDelayElapsed() {
+    auto& store = context().Get<ContributionStore>();
+    JoinFutures(store.GetRecurringContributions(), store.GetPublisherActivity())
+        .Then(ContinueWith(this, &SchedulerJob::OnStoreRead));
   }
 
-  void OnContributionsRead(std::vector<RecurringContribution> contributions) {
-    context().Get<ContributionStore>().UpdateLastScheduledContributionTime();
+  void OnStoreRead(std::tuple<std::vector<RecurringContribution>,
+                              std::vector<PublisherActivity>> data) {
+    auto& [contributions, activity] = data;
 
     ScheduledContributionState state;
+
     for (auto& contribution : contributions) {
-      state.contributions.push_back(
-          RecurringContributionState{.publisher_id = contribution.publisher_id,
-                                     .amount = contribution.amount});
+      state.contributions.push_back(RecurringContributionState{
+          .publisher_id = std::move(contribution.publisher_id),
+          .amount = contribution.amount});
     }
 
-    // TODO(zenparsing): Should there only ever be one of these jobs running at
-    // a time? If we did want that, we would store a flag in this job.
+    state.activity = std::move(activity);
+
+    auto& store = context().Get<ContributionStore>();
+    store.UpdateLastScheduledContributionTime();
+    store.ResetPublisherActivity();
+
     context().LogVerbose(FROM_HERE) << "Starting recurring contributions";
 
-    context().Get<JobStore>().StartJobWithState<ScheduledContributionJob>(
-        state);
+    // TODO(zenparsing): Should there only ever be one of these jobs running at
+    // a time? If we did want that, we would store a flag in this job (or wait
+    // for the contribution job to complete).
+    context().Get<JobStore>().StartJobWithState<ContributionJob>(state);
 
     ScheduleNext();
   }
@@ -249,7 +258,7 @@ class SchedulerJob : public BATLedgerJob<bool> {
 const char ContributionScheduler::kContextKey[] = "contribution-scheduler";
 
 Future<bool> ContributionScheduler::Initialize() {
-  context().Get<JobStore>().ResumeJobs<ScheduledContributionJob>();
+  context().Get<JobStore>().ResumeJobs<ContributionJob>();
   context().StartJob<SchedulerJob>();
   return Future<bool>::Completed(true);
 }

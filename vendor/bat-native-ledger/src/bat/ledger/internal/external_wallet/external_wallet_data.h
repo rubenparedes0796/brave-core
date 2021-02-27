@@ -9,16 +9,18 @@
 #include <iostream>
 #include <string>
 
+#include "bat/ledger/internal/core/enum_string.h"
 #include "bat/ledger/public/interfaces/ledger.mojom.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ledger {
 
 enum class ExternalWalletProvider { kUphold, kGemini, kBitflyer };
 
-void ParseEnum(const std::string& s,
-               absl::optional<ExternalWalletProvider>* value);
-
 std::string StringifyEnum(ExternalWalletProvider value);
+
+absl::optional<ExternalWalletProvider> ParseEnum(
+    const EnumString<ExternalWalletProvider>& s);
 
 struct ExternalWallet {
   ExternalWalletProvider provider;

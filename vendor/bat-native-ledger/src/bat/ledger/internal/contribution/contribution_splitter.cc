@@ -14,7 +14,7 @@
 #include "bat/ledger/internal/core/bat_ledger_job.h"
 #include "bat/ledger/internal/core/future_join.h"
 #include "bat/ledger/internal/external_wallet/external_wallet_manager.h"
-#include "bat/ledger/internal/ledger_impl.h"
+#include "bat/ledger/internal/publisher/publisher_service.h"
 
 namespace ledger {
 
@@ -29,16 +29,17 @@ class SplitJob : public BATLedgerJob<Split> {
   void Start(const std::string& publisher_id, double amount) {
     remaining_ = amount;
 
-    // TODO(zenparsing): Force refresh of publisher data?
-    context().GetLedgerImpl()->publisher()->GetServerPublisherInfo(
-        publisher_id,
-        CreateLambdaCallback(this, &SplitJob::OnPublisherFetched));
+    context()
+        .Get<PublisherService>()
+        .GetPublisher(publisher_id)
+        .Then(ContinueWith(this, &SplitJob::OnPublisherLoaded));
   }
 
  private:
-  void OnPublisherFetched(mojom::ServerPublisherInfoPtr publisher) {
-    if (!publisher)
+  void OnPublisherLoaded(absl::optional<Publisher> publisher) {
+    if (!publisher) {
       return Complete(Split(Error::kPublisherNotFound));
+    }
 
     publisher_ = std::move(publisher);
 
@@ -54,16 +55,18 @@ class SplitJob : public BATLedgerJob<Split> {
                                     << "tokens: " << virtual_tokens << ", "
                                     << "external: " << external << ")";
 
-    if (virtual_tokens + external < remaining_)
+    if (virtual_tokens + external < remaining_) {
       return Complete(Split(Error::kInsufficientFunds));
+    }
 
     Split split;
 
     AddSplitAmount(ContributionSource::kBraveVG, virtual_tokens, &split);
     AddSplitAmount(ContributionSource::kExternal, external, &split);
 
-    if (remaining_ > 0)
+    if (remaining_ > 0) {
       return Complete(Split(Error::kPublisherNotConfigured));
+    }
 
     Complete(std::move(split));
   }
@@ -72,23 +75,23 @@ class SplitJob : public BATLedgerJob<Split> {
     switch (source) {
       case ContributionSource::kBraveVG:
       case ContributionSource::kBraveSKU:
-        return publisher_->status != mojom::PublisherStatus::NOT_VERIFIED;
+        return publisher_.registered;
       case ContributionSource::kExternal: {
         auto external =
             context().Get<ExternalWalletManager>().GetExternalWallet();
 
-        if (!external)
+        if (!external) {
           return false;
-
-        auto status = publisher_->status;
-        switch (external->provider) {
-          case ExternalWalletProvider::kUphold:
-            return status == mojom::PublisherStatus::UPHOLD_VERIFIED;
-          case ExternalWalletProvider::kGemini:
-            return status == mojom::PublisherStatus::GEMINI_VERIFIED;
-          case ExternalWalletProvider::kBitflyer:
-            return status == mojom::PublisherStatus::BITFLYER_VERIFIED;
         }
+
+        for (auto& publisher_wallet : publisher_.wallets) {
+          if (publisher_wallet.provider == external->provider &&
+              !publisher_wallet.address.empty()) {
+            return true;
+          }
+        }
+
+        return false;
       }
     }
   }
@@ -96,13 +99,14 @@ class SplitJob : public BATLedgerJob<Split> {
   void AddSplitAmount(ContributionSource source,
                       double available,
                       Split* split) {
-    if (!CanAcceptSource(source))
+    if (!CanAcceptSource(source)) {
       return;
+    }
 
     double amount = std::min(available, remaining_);
-
-    if (amount <= 0)
+    if (amount <= 0) {
       return;
+    }
 
     remaining_ -= amount;
     split->amounts.push_back({.source = source, .amount = amount});
@@ -120,8 +124,8 @@ class SplitJob : public BATLedgerJob<Split> {
         }));
   }
 
-  mojom::ServerPublisherInfoPtr publisher_;
-  double remaining_;
+  Publisher publisher_;
+  double remaining_ = 0;
 };
 
 }  // namespace

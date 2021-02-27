@@ -5,25 +5,12 @@
 
 #include "bat/ledger/internal/contribution/contribution_data.h"
 
-#include <iostream>
 #include <string>
 
 #include "base/guid.h"
+#include "bat/ledger/internal/core/value_converters.h"
 
 namespace ledger {
-
-void ParseEnum(const std::string& s, absl::optional<ContributionType>* value) {
-  DCHECK(value);
-  if (s == "one-time") {
-    *value = ContributionType::kOneTime;
-  } else if (s == "recurring") {
-    *value = ContributionType::kRecurring;
-  } else if (s == "auto-contribute") {
-    *value = ContributionType::kAutoContribute;
-  } else {
-    *value = {};
-  }
-}
 
 std::string StringifyEnum(ContributionType value) {
   switch (value) {
@@ -36,18 +23,10 @@ std::string StringifyEnum(ContributionType value) {
   }
 }
 
-void ParseEnum(const std::string& s,
-               absl::optional<ContributionSource>* value) {
-  DCHECK(value);
-  if (s == "brave-vg") {
-    *value = ContributionSource::kBraveVG;
-  } else if (s == "brave-sku") {
-    *value = ContributionSource::kBraveSKU;
-  } else if (s == "external") {
-    *value = ContributionSource::kExternal;
-  } else {
-    *value = {};
-  }
+absl::optional<ContributionType> ParseEnum(
+    const EnumString<ContributionType>& s) {
+  return s.Match({ContributionType::kOneTime, ContributionType::kRecurring,
+                  ContributionType::kAutoContribute});
 }
 
 std::string StringifyEnum(ContributionSource value) {
@@ -59,6 +38,29 @@ std::string StringifyEnum(ContributionSource value) {
     case ContributionSource::kExternal:
       return "external";
   }
+}
+
+absl::optional<ContributionSource> ParseEnum(
+    const EnumString<ContributionSource>& s) {
+  return s.Match({ContributionSource::kBraveVG, ContributionSource::kBraveSKU,
+                  ContributionSource::kExternal});
+}
+
+base::Value PublisherActivity::ToValue() const {
+  ValueWriter w;
+  w.Write("publisher_id", publisher_id);
+  w.Write("visits", visits);
+  w.Write("duration", duration);
+  return w.Finish();
+}
+
+absl::optional<PublisherActivity> PublisherActivity::FromValue(
+    const base::Value& value) {
+  StructValueReader<PublisherActivity> r(value);
+  r.Read("publisher_id", &PublisherActivity::publisher_id);
+  r.Read("visits", &PublisherActivity::visits);
+  r.Read("duration", &PublisherActivity::duration);
+  return r.Finish();
 }
 
 ContributionRequest::ContributionRequest() = default;

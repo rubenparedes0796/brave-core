@@ -58,12 +58,14 @@ SQLReader& SQLReader::operator=(SQLReader&& other) {
 }
 
 bool SQLReader::Step() {
-  if (!response_->result || !response_->result->is_records())
+  if (!response_->result || !response_->result->is_records()) {
     return false;
+  }
 
   int record_count = static_cast<int>(response_->result->get_records().size());
-  if (row_ >= record_count)
+  if (row_ >= record_count) {
     return false;
+  }
 
   return ++row_ < record_count;
 }
@@ -78,8 +80,9 @@ bool SQLReader::ColumnBool(int col) const {
 
 int64_t SQLReader::ColumnInt64(int col) const {
   auto* db_value = GetDBValue(col);
-  if (!db_value)
+  if (!db_value) {
     return 0;
+  }
 
   switch (db_value->which()) {
     case mojom::DBValue::Tag::NULL_VALUE:
@@ -102,8 +105,9 @@ int64_t SQLReader::ColumnInt64(int col) const {
 
 double SQLReader::ColumnDouble(int col) const {
   auto* db_value = GetDBValue(col);
-  if (!db_value)
+  if (!db_value) {
     return 0;
+  }
 
   switch (db_value->which()) {
     case mojom::DBValue::Tag::NULL_VALUE:
@@ -126,8 +130,9 @@ double SQLReader::ColumnDouble(int col) const {
 
 std::string SQLReader::ColumnString(int col) const {
   auto* db_value = GetDBValue(col);
-  if (!db_value)
+  if (!db_value) {
     return "";
+  }
 
   switch (db_value->which()) {
     case mojom::DBValue::Tag::BOOL_VALUE:
@@ -146,17 +151,20 @@ std::string SQLReader::ColumnString(int col) const {
 }
 
 mojom::DBValue* SQLReader::GetDBValue(int col) const {
-  if (!response_->result || !response_->result->is_records())
+  if (!response_->result || !response_->result->is_records()) {
     return nullptr;
+  }
 
   auto& records = response_->result->get_records();
-  if (row_ >= static_cast<int>(records.size()))
+  if (row_ >= static_cast<int>(records.size())) {
     return nullptr;
+  }
 
   auto& record = records[row_];
   int column_count = static_cast<int>(record->fields.size());
-  if (col < 0 || col >= column_count)
+  if (col < 0 || col >= column_count) {
     return nullptr;
+  }
 
   return record->fields[col].get();
 }
@@ -276,7 +284,6 @@ std::string SQLStore::PlaceholderList(size_t count) {
 std::string SQLStore::TimeString(const base::Time& time) {
   return base::TimeToISO8601(time);
 }
-
 std::string SQLStore::TimeString() {
   return TimeString(base::Time::Now());
 }

@@ -12,7 +12,10 @@
 #include <vector>
 
 #include "base/strings/string_number_conversions.h"
+#include "base/time/time.h"
+#include "base/time/time_to_iso8601.h"
 #include "base/values.h"
+#include "bat/ledger/internal/core/enum_string.h"
 
 namespace ledger {
 
@@ -76,7 +79,7 @@ class ValueReader {
   void ReadValue(const base::Value& value, absl::optional<T>* out) {
     DCHECK(out);
     if (auto* s = value.GetIfString()) {
-      ParseEnum(*s, out);
+      *out = EnumString<T>::Parse(*s);
     }
   }
 
@@ -98,6 +101,11 @@ class ValueReader {
     DCHECK(out);
     if (auto parsed = value.GetIfDouble()) {
       *out = *parsed;
+    } else if (auto* s = value.GetIfString()) {
+      double v;
+      if (base::StringToDouble(*s, &v)) {
+        *out = v;
+      }
     }
   }
 
@@ -118,6 +126,26 @@ class ValueReader {
     }
   }
 
+  void ReadValue(const base::Value& value, absl::optional<base::Time>* out) {
+    DCHECK(out);
+    if (auto* s = value.GetIfString()) {
+      base::Time time;
+      if (base::Time::FromString(s->c_str(), &time)) {
+        *out = time;
+      }
+    }
+  }
+
+  void ReadValue(const base::Value& value,
+                 absl::optional<base::TimeDelta>* out) {
+    DCHECK(out);
+    absl::optional<double> d;
+    ReadValue(value, &d);
+    if (d) {
+      *out = base::Seconds(*d);
+    }
+  }
+
   const base::Value& value_;
   bool success_ = true;
 };
@@ -126,9 +154,6 @@ template <typename Data>
 class StructValueReader {
  public:
   explicit StructValueReader(const base::Value& value) : reader_(value) {}
-
-  StructValueReader(const base::Value& value, Data&& data)
-      : reader_(value), data_(std::move(data_)) {}
 
   ~StructValueReader() = default;
 
@@ -200,8 +225,20 @@ class ValueWriter {
 
   base::Value ToValue(const std::string& value) { return base::Value(value); }
 
+  base::Value ToValue(const base::StringPiece value) {
+    return base::Value(value);
+  }
+
   base::Value ToValue(int64_t value) {
     return base::Value(base::NumberToString(value));
+  }
+
+  base::Value ToValue(base::Time time) {
+    return ToValue(base::TimeToISO8601(time));
+  }
+
+  base::Value ToValue(base::TimeDelta value) {
+    return ToValue(value.InSecondsF());
   }
 
   base::Value value_{base::Value::Type::DICTIONARY};

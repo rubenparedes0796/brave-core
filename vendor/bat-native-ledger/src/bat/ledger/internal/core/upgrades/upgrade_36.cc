@@ -11,7 +11,7 @@ namespace ledger {
 
 namespace {
 
-// TODO(zenparsing): pending_contribution
+// TODO(zenparsing): pending_contribution, index on job_state.job_type
 
 const char kSQL[] = R"sql(
 

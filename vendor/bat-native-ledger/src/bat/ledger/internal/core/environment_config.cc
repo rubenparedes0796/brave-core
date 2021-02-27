@@ -9,7 +9,7 @@ namespace ledger {
 
 const char EnvironmentConfig::kContextKey[] = "environment-config";
 
-const char* EnvironmentConfig::auto_contribute_sku() {
+const char* EnvironmentConfig::auto_contribute_sku() const {
   switch (env()) {
     case Environment::kDevelopment:
       return "AgEJYnJhdmUuY29tAiNicmF2ZSB1c2VyLXdhbGxldC12b3RlIHNrdSB0b2tlbiB2M"
@@ -29,7 +29,7 @@ const char* EnvironmentConfig::auto_contribute_sku() {
   }
 }
 
-const char* EnvironmentConfig::anonymous_funds_sku() {
+const char* EnvironmentConfig::anonymous_funds_sku() const {
   switch (env()) {
     case Environment::kDevelopment:
       return "AgEJYnJhdmUuY29tAiFicmF2ZSBhbm9uLWNhcmQtdm90ZSBza3UgdG9rZW4gdjEAA"
@@ -49,7 +49,7 @@ const char* EnvironmentConfig::anonymous_funds_sku() {
   }
 }
 
-const char* EnvironmentConfig::anonymous_token_order_address() {
+const char* EnvironmentConfig::anonymous_token_order_address() const {
   switch (env()) {
     case Environment::kDevelopment:
       return "9094c3f2-b3ae-438f-bd59-92aaad92de5c";
@@ -60,7 +60,7 @@ const char* EnvironmentConfig::anonymous_token_order_address() {
   }
 }
 
-const char* EnvironmentConfig::uphold_token_order_address() {
+const char* EnvironmentConfig::uphold_token_order_address() const {
   switch (env()) {
     case Environment::kDevelopment:
       return "9094c3f2-b3ae-438f-bd59-92aaad92de5c";
@@ -71,13 +71,24 @@ const char* EnvironmentConfig::uphold_token_order_address() {
   }
 }
 
-const char* EnvironmentConfig::gemini_token_order_address() {
+const char* EnvironmentConfig::gemini_token_order_address() const {
   switch (env()) {
     case Environment::kDevelopment:
     case Environment::kStaging:
       return "60e5e863-8c3d-4341-8b54-23e2695a490c";
     case Environment::kProduction:
       return "6116adaf-92e6-42fa-bee8-6f749b8eb44e";
+  }
+}
+
+const char* EnvironmentConfig::payment_service_host() const {
+  switch (env()) {
+    case Environment::kDevelopment:
+      return "payment.rewards.brave.software";
+    case Environment::kStaging:
+      return "payment.rewards.bravesoftware.com";
+    case Environment::kProduction:
+      return "payment.rewards.brave.com";
   }
 }
 

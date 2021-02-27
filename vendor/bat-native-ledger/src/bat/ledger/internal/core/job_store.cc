@@ -60,7 +60,7 @@ std::string JobStore::AddState(const std::string& job_type,
 
   std::string json;
   bool ok = base::JSONWriter::Write(value, &json);
-  CHECK(ok);
+  DCHECK(ok);
 
   const char kSQL[] = R"sql(
       INSERT OR REPLACE INTO job_state (job_id, job_type, state, created_at)
@@ -99,7 +99,7 @@ absl::optional<base::Value> JobStore::GetState(const std::string& job_id) {
   return iter->second.value.Clone();
 }
 
-void JobStore::DeleteState(const std::string& job_id) {
+void JobStore::OnJobCompleted(const std::string& job_id) {
   size_t erased = state_map_.erase(job_id);
   if (erased == 0) {
     return;

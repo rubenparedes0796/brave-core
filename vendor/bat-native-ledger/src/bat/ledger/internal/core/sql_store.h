@@ -26,8 +26,6 @@ namespace ledger {
 //   if (reader.Step()) {
 //     std::string value = reader.ColumnString(0);
 //   }
-//
-// Prefer to use |SQLReader| over directly accessing |DBCommandResponsePtr|.
 class SQLReader {
  public:
   explicit SQLReader(mojom::DBCommandResponsePtr response);
@@ -197,8 +195,9 @@ class SQLStore : public BATLedgerContext::Object {
 
   template <typename T, typename U>
   static void AddBinding(T* bindings, const std::vector<U>& values) {
-    for (const U& value : values)
+    for (const U& value : values) {
       AddBinding(bindings, value);
+    }
   }
 };
 

@@ -10,21 +10,24 @@
 
 #include "base/time/time.h"
 #include "base/values.h"
+#include "bat/ledger/internal/core/enum_string.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ledger {
 
 enum class ContributionType { kOneTime, kRecurring, kAutoContribute };
 
-void ParseEnum(const std::string& s, absl::optional<ContributionType>* value);
-
 std::string StringifyEnum(ContributionType value);
 
-// TODO(zenparsing): Do we need the "Brave" prefix?
+absl::optional<ContributionType> ParseEnum(
+    const EnumString<ContributionType>& s);
+
 enum class ContributionSource { kBraveVG, kBraveSKU, kExternal };
 
-void ParseEnum(const std::string& s, absl::optional<ContributionSource>* value);
-
 std::string StringifyEnum(ContributionSource value);
+
+absl::optional<ContributionSource> ParseEnum(
+    const EnumString<ContributionSource>& s);
 
 // TODO(zenparsing): This should just be "Contribution" I suppose. Do we even
 // really need this structure?
@@ -53,6 +56,7 @@ struct ContributionRequest {
 
 enum class ContributionTokenType { kVG, kSKU };
 
+// TODO(zenparsing): Naming? ContributionTokenInfo?
 struct ContributionToken {
   int64_t id;
   double value;
@@ -64,6 +68,9 @@ struct PublisherActivity {
   std::string publisher_id;
   int64_t visits;
   base::TimeDelta duration;
+
+  base::Value ToValue() const;
+  static absl::optional<PublisherActivity> FromValue(const base::Value& value);
 };
 
 struct RecurringContribution {

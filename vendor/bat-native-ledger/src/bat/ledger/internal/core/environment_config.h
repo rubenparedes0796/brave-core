@@ -14,16 +14,17 @@ class EnvironmentConfig : public BATLedgerContext::Object {
  public:
   static const char kContextKey[];
 
-  const char* auto_contribute_sku();
-  const char* anonymous_funds_sku();
-  const char* anonymous_token_order_address();
-  const char* uphold_token_order_address();
-  const char* gemini_token_order_address();
+  const char* auto_contribute_sku() const;
+  const char* anonymous_funds_sku() const;
+  const char* anonymous_token_order_address() const;
+  const char* uphold_token_order_address() const;
+  const char* gemini_token_order_address() const;
+  const char* payment_service_host() const;
 
  private:
   using Environment = BATLedgerContext::Environment;
 
-  Environment env() { return context().options().environment; }
+  Environment env() const { return context().options().environment; }
 };
 
 }  // namespace ledger

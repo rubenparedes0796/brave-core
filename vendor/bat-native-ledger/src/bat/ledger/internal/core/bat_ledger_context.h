@@ -68,7 +68,9 @@ class BATLedgerContext : private base::SupportsUserData {
    protected:
     Object();
 
-    BATLedgerContext& context() { return *context_; }
+    BATLedgerContext& context() const {
+      return *const_cast<Object*>(this)->context_;
+    }
 
    private:
     friend class BATLedgerContext;

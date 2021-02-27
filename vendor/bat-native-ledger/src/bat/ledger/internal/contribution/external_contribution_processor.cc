@@ -11,7 +11,7 @@
 #include "bat/ledger/internal/contribution/contribution_store.h"
 #include "bat/ledger/internal/core/bat_ledger_job.h"
 #include "bat/ledger/internal/external_wallet/external_wallet_manager.h"
-#include "bat/ledger/internal/ledger_impl.h"
+#include "bat/ledger/internal/publisher/publisher_service.h"
 
 namespace ledger {
 
@@ -47,16 +47,15 @@ class ProcessJob : public BATLedgerJob<bool> {
       return Complete(false);
     }
 
-    // TODO(zenparsing): Should we force a refresh of the publisher info here?
-    // TODO(zenparsing): Should we do this before getting the balance?
-    context().GetLedgerImpl()->publisher()->GetServerPublisherInfo(
-        contribution_.publisher_id,
-        CreateLambdaCallback(this, &ProcessJob::OnPublisherInfoFetched));
+    context()
+        .Get<PublisherService>()
+        .GetPublisher(contribution_.publisher_id)
+        .Then(ContinueWith(this, &ProcessJob::OnPublisherLoaded));
   }
 
-  void OnPublisherInfoFetched(mojom::ServerPublisherInfoPtr publisher) {
+  void OnPublisherLoaded(absl::optional<Publisher> publisher) {
     if (!publisher) {
-      context().LogError(FROM_HERE) << "Unable to fetch publisher info";
+      context().LogError(FROM_HERE) << "Unable to load publisher info";
       return Complete(false);
     }
 
@@ -97,27 +96,19 @@ class ProcessJob : public BATLedgerJob<bool> {
     Complete(true);
   }
 
-  std::string GetPublisherAddress(const mojom::ServerPublisherInfo& publisher) {
+  std::string GetPublisherAddress(const Publisher& publisher) {
     auto wallet = context().Get<ExternalWalletManager>().GetExternalWallet();
-    if (!wallet)
+    if (!wallet) {
       return "";
-
-    auto can_accept = false;
-    auto status = publisher.status;
-
-    switch (wallet->provider) {
-      case ExternalWalletProvider::kUphold:
-        can_accept = status == mojom::PublisherStatus::UPHOLD_VERIFIED;
-        break;
-      case ExternalWalletProvider::kGemini:
-        can_accept = status == mojom::PublisherStatus::GEMINI_VERIFIED;
-        break;
-      case ExternalWalletProvider::kBitflyer:
-        can_accept = status == mojom::PublisherStatus::BITFLYER_VERIFIED;
-        break;
     }
 
-    return can_accept ? publisher.address : "";
+    for (auto& publisher_wallet : publisher.wallets) {
+      if (publisher_wallet.provider == wallet->provider) {
+        return publisher_wallet.address;
+      }
+    }
+
+    return "";
   }
 
   ContributionRequest contribution_;

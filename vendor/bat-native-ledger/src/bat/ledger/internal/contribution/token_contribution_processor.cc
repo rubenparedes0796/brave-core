@@ -32,6 +32,10 @@ mojom::RewardsType ContributionTypeToRewardsType(ContributionType type) {
   }
 }
 
+struct ProcessState {
+  ContributionRequest contribution;
+};
+
 class ProcessJob : public BATLedgerJob<bool> {
  public:
   void Start(const ContributionRequest& contribution) {
@@ -90,6 +94,7 @@ class ProcessJob : public BATLedgerJob<bool> {
       payment_server_.reset(
           new endpoint::PaymentServer(context().GetLedgerImpl()));
 
+      // TODO(zenparsing): Reimplement in |PaymentService|.
       payment_server_->post_votes()->Request(
           redeem, CreateLambdaCallback(this, &ProcessJob::OnTokensRedeemed));
     } else {
@@ -103,11 +108,7 @@ class ProcessJob : public BATLedgerJob<bool> {
 
   void OnTokensRedeemed(mojom::Result result) {
     if (result != mojom::Result::LEDGER_OK) {
-      // TODO(zenparsing): What happens if these tokens have already been spent?
-      // In such a case we need to permanently remove the tokens from the
-      // available pool. This happen if we sent a contribution and the server
-      // processed it, but we did not receive the response. Do we need to make
-      // this a resumable job for that reason?
+      // TODO(zenparsing): Log an error here.
       return Complete(false);
     }
 

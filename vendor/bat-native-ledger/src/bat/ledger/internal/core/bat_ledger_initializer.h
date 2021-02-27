@@ -27,6 +27,8 @@ class BATLedgerInitializer : public BATLedgerContext::Object {
   Future<bool> Initialize();
 
  private:
+  // TODO(zenparsing): Do we need this, or can we assume that callers will only
+  // call this once?
   FutureCache<bool> initialize_cache_;
 };
 

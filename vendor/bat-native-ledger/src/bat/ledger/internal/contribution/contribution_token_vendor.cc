@@ -5,6 +5,8 @@
 
 #include "bat/ledger/internal/contribution/contribution_token_vendor.h"
 
+#include <algorithm>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -18,9 +20,8 @@
 #include "bat/ledger/internal/core/job_store.h"
 #include "bat/ledger/internal/core/privacy_pass.h"
 #include "bat/ledger/internal/core/value_converters.h"
-#include "bat/ledger/internal/endpoint/payment/payment_server.h"
 #include "bat/ledger/internal/external_wallet/external_wallet_manager.h"
-#include "bat/ledger/internal/ledger_impl.h"
+#include "bat/ledger/internal/payments/payment_service.h"
 
 namespace ledger {
 
@@ -30,12 +31,12 @@ constexpr double kVotePrice = 0.25;
 constexpr base::TimeDelta kMinRetryDelay = base::Seconds(15);
 constexpr base::TimeDelta kMaxRetryDelay = base::Minutes(30);
 
-// TODO(zenparsing): Do we need a completed status for these jobs?
 enum class PurchaseStatus {
   kPending,
   kOrderCreated,
   kTransferCompleted,
   kTransactionSent,
+  kOrderPaid,
   kTokensCreated,
   kTokensClaimed,
   kComplete
@@ -51,6 +52,8 @@ std::string StringifyEnum(PurchaseStatus status) {
       return "transfer-completed";
     case PurchaseStatus::kTransactionSent:
       return "transaction-sent";
+    case PurchaseStatus::kOrderPaid:
+      return "order-paid";
     case PurchaseStatus::kTokensCreated:
       return "tokens-created";
     case PurchaseStatus::kTokensClaimed:
@@ -60,24 +63,12 @@ std::string StringifyEnum(PurchaseStatus status) {
   }
 }
 
-void ParseEnum(const std::string& s, absl::optional<PurchaseStatus>* value) {
-  if (s == "pending") {
-    *value = PurchaseStatus::kPending;
-  } else if (s == "order-created") {
-    *value = PurchaseStatus::kOrderCreated;
-  } else if (s == "transfer-completed") {
-    *value = PurchaseStatus::kTransferCompleted;
-  } else if (s == "transaction-sent") {
-    *value = PurchaseStatus::kTransactionSent;
-  } else if (s == "tokens-created") {
-    *value = PurchaseStatus::kTokensCreated;
-  } else if (s == "tokens-claimed") {
-    *value = PurchaseStatus::kTokensClaimed;
-  } else if (s == "complete") {
-    *value = PurchaseStatus::kComplete;
-  } else {
-    *value = {};
-  }
+absl::optional<PurchaseStatus> ParseEnum(const EnumString<PurchaseStatus>& s) {
+  return s.Match({PurchaseStatus::kPending, PurchaseStatus::kOrderCreated,
+                  PurchaseStatus::kTransferCompleted,
+                  PurchaseStatus::kTransactionSent, PurchaseStatus::kOrderPaid,
+                  PurchaseStatus::kTokensCreated,
+                  PurchaseStatus::kTokensClaimed, PurchaseStatus::kComplete});
 }
 
 struct PurchaseState {
@@ -89,6 +80,7 @@ struct PurchaseState {
   std::vector<std::string> tokens;
   std::vector<std::string> blinded_tokens;
   PurchaseStatus status = PurchaseStatus::kPending;
+  std::string error;
 
   base::Value ToValue() const {
     ValueWriter w;
@@ -100,6 +92,7 @@ struct PurchaseState {
     w.Write("tokens", tokens);
     w.Write("blinded_tokens", blinded_tokens);
     w.Write("status", status);
+    w.Write("error", error);
     return w.Finish();
   }
 
@@ -113,6 +106,7 @@ struct PurchaseState {
     r.Read("tokens", &PurchaseState::tokens);
     r.Read("blinded_tokens", &PurchaseState::blinded_tokens);
     r.Read("status", &PurchaseState::status);
+    r.Read("error", &PurchaseState::error);
     return r.Finish();
   }
 };
@@ -123,9 +117,6 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
 
  protected:
   void Resume() override {
-    payment_server_.reset(
-        new endpoint::PaymentServer(context().GetLedgerImpl()));
-
     switch (state().status) {
       case PurchaseStatus::kPending:
         return CreateOrder();
@@ -135,6 +126,8 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
         return SendTransaction();
       case PurchaseStatus::kTransactionSent:
         return CreateTokens();
+      case PurchaseStatus::kOrderPaid:
+        return WaitForTransactionCompletion();
       case PurchaseStatus::kTokensCreated:
         return ClaimTokens();
       case PurchaseStatus::kTokensClaimed:
@@ -144,47 +137,40 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
     }
   }
 
-  void OnStateInvalid() override { Complete(false); }
+  void OnStateInvalid() override { CompleteWithError("Invalid job state"); }
 
  private:
   void CreateOrder() {
     if (state().quantity <= 0) {
       NOTREACHED();
-      context().LogError(FROM_HERE) << "Invalid token order quantity";
-      return Complete(false);
+      return CompleteWithError("Invalid token order quantity");
     }
 
-    mojom::SKUOrderItem item;
-    item.sku = context().Get<EnvironmentConfig>().auto_contribute_sku();
-    item.quantity = state().quantity;
-    std::vector<mojom::SKUOrderItem> items;
-    items.push_back(std::move(item));
+    const char* sku = context().Get<EnvironmentConfig>().auto_contribute_sku();
+    std::map<std::string, int> items;
+    items[sku] = state().quantity;
 
-    payment_server_->post_order()->Request(
-        items, CreateLambdaCallback(this, &PurchaseJob::OnOrderResponse));
+    context().Get<PaymentService>().CreateOrder(items).Then(
+        ContinueWith(this, &PurchaseJob::OnOrderCreated));
   }
 
-  void OnOrderResponse(mojom::Result result, mojom::SKUOrderPtr order) {
-    if (result != mojom::Result::LEDGER_OK || !order) {
-      // TODO(zenparsing): Retry instead?
-      context().LogError(FROM_HERE) << "Error attempting to create SKU order";
-      return Complete(false);
+  void OnOrderCreated(absl::optional<PaymentOrder> order) {
+    if (!order) {
+      return CompleteWithError("Error attempting to create order");
     }
 
     if (order->items.size() != 1) {
-      context().LogError(FROM_HERE) << "Unexpected number of SKU order items";
-      return Complete(false);
+      return CompleteWithError("Unexpected number of order items");
     }
 
     auto& item = order->items.front();
     // TODO(zenparsing): Double comparison?
-    if (item->price != kVotePrice) {
-      context().LogError(FROM_HERE) << "Unexpected vote price for SKU item";
-      return Complete(false);
+    if (item.price != kVotePrice) {
+      return CompleteWithError("Unexpected vote price for order item");
     }
 
-    state().order_id = item->order_id;
-    state().order_item_id = item->order_item_id;
+    state().order_id = order->id;
+    state().order_item_id = item.id;
     state().status = PurchaseStatus::kOrderCreated;
     SaveState();
 
@@ -195,9 +181,8 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
     auto& manager = context().Get<ExternalWalletManager>();
     auto destination = manager.GetContributionTokenOrderAddress();
     if (!destination) {
-      context().LogError(FROM_HERE) << "External provider does not support "
-                                    << "contribution token orders";
-      return Complete(false);
+      return CompleteWithError(
+          "External provider does not support contribution token orders");
     }
 
     double transfer_amount = state().quantity * kVotePrice;
@@ -205,35 +190,10 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
         .Then(ContinueWith(this, &PurchaseJob::OnTransferCompleted));
   }
 
-  /*
-  void TransferAnonymous() {
-    std::string address =
-        context().Get<EnvironmentConfig>().anonymous_token_order_address();
-
-    payment_server_->post_transaction_anon()->Request(
-        order_.quantity * kVotePrice, order_.order_id, address,
-        CreateLambdaCallback(this, &ResumeJob::OnTransferAnonymousResponse));
-  }
-
-  void OnTransferAnonymousResponse(mojom::Result result) {
-    if (result != mojom::Result::LEDGER_OK) {
-      context().LogError(FROM_HERE) << "Anonymous funds transfer failed";
-      return MarkFailed();
-    }
-
-    context()
-        .Get<ContributionStore>()
-        .MarkOrderTransferCompleted(order_.order_id)
-        .Then(ContinueWith(this, &ResumeJob::OnTransferCompleteSaved));
-  }
-  */
-
   void OnTransferCompleted(
       absl::optional<ExternalWalletTransferResult> result) {
     if (!result) {
-      // TODO(zenparsing): Retry instead?
-      context().LogError(FROM_HERE) << "External transfer failed";
-      return Complete(false);
+      return CompleteWithError("External transfer failed");
     }
 
     state().external_provider = result->provider;
@@ -246,46 +206,19 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
 
   void SendTransaction() {
     if (!state().external_provider) {
-      NOTREACHED();
-      context().LogError(FROM_HERE)
-          << "AC state missing external wallet provider";
-      return Complete(false);
+      return CompleteWithError("AC state missing external wallet provider");
     }
 
-    switch (*state().external_provider) {
-      case ExternalWalletProvider::kUphold:
-        return SendUpholdTransaction();
-      case ExternalWalletProvider::kGemini:
-        return SendGeminiTransaction();
-      case ExternalWalletProvider::kBitflyer:
-        NOTREACHED();
-        context().LogError(FROM_HERE) << "Invalid external wallet provider";
-        return Complete(false);
-    }
+    context()
+        .Get<PaymentService>()
+        .PostExternalTransaction(state().order_id,
+                                 state().external_transaction_id,
+                                 *state().external_provider)
+        .Then(ContinueWith(this, &PurchaseJob::OnTransactionSent));
   }
 
-  void SendUpholdTransaction() {
-    mojom::SKUTransaction sku_transaction;
-    sku_transaction.order_id = state().order_id;
-    sku_transaction.external_transaction_id = state().external_transaction_id;
-
-    payment_server_->post_transaction_uphold()->Request(
-        sku_transaction,
-        CreateLambdaCallback(this, &PurchaseJob::OnTransactionSent));
-  }
-
-  void SendGeminiTransaction() {
-    mojom::SKUTransaction sku_transaction;
-    sku_transaction.order_id = state().order_id;
-    sku_transaction.external_transaction_id = state().external_transaction_id;
-
-    payment_server_->post_transaction_gemini()->Request(
-        sku_transaction,
-        CreateLambdaCallback(this, &PurchaseJob::OnTransactionSent));
-  }
-
-  void OnTransactionSent(mojom::Result result) {
-    if (result != mojom::Result::LEDGER_OK) {
+  void OnTransactionSent(bool success) {
+    if (!success) {
       context().LogError(FROM_HERE) << "Unable to send external transaction ID";
       WaitForRetryThen(ContinueWith(this, &PurchaseJob::SendTransaction));
       return;
@@ -296,8 +229,27 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
     state().status = PurchaseStatus::kTransactionSent;
     SaveState();
 
-    // TODO(zenparsing): Before creating and claiming tokens, we need to poll
-    // the order endpoint to wait for the transaction to complete.
+    WaitForTransactionCompletion();
+  }
+
+  void WaitForTransactionCompletion() {
+    context()
+        .Get<PaymentService>()
+        .GetOrder(state().order_id)
+        .Then(ContinueWith(this, &PurchaseJob::OnOrderFetched));
+  }
+
+  void OnOrderFetched(absl::optional<PaymentOrder> order) {
+    if (!order || order->status != PaymentOrderStatus::kPaid) {
+      context().LogError(FROM_HERE) << "Order status is not 'paid' yet";
+      WaitForRetryThen(
+          ContinueWith(this, &PurchaseJob::WaitForTransactionCompletion));
+      return;
+    }
+
+    backoff_.Reset();
+    state().status = PurchaseStatus::kOrderPaid;
+    SaveState();
 
     CreateTokens();
   }
@@ -320,19 +272,16 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
       blinded_token_list.Append(blinded_token);
     }
 
-    payment_server_->post_credentials()->Request(
-        state().order_id, state().order_item_id, "single-use",
-        std::make_unique<base::ListValue>(blinded_token_list.GetList()),
-        CreateLambdaCallback(this, &PurchaseJob::OnTokensClaimed));
+    context()
+        .Get<PaymentService>()
+        .PostCredentials(state().order_id, state().order_item_id,
+                         PaymentCredentialType::kSingleUse,
+                         state().blinded_tokens)
+        .Then(ContinueWith(this, &PurchaseJob::OnTokensClaimed));
   }
 
-  void OnTokensClaimed(mojom::Result result) {
-    if (result != mojom::Result::LEDGER_OK) {
-      // TODO(zenparsing): Claiming can fail if the external transaction has not
-      // cleared yet. Retrying the claiming endpoint won't help, since the
-      // backend does not poll for transaction completion in the background.
-      // Instead, the protocol requires that we call the "get order" endpoint
-      // until it reports that the order has been paid.
+  void OnTokensClaimed(bool success) {
+    if (success) {
       context().LogError(FROM_HERE) << "Unable to claim signed tokens";
       WaitForRetryThen(ContinueWith(this, &PurchaseJob::ClaimTokens));
       return;
@@ -347,13 +296,14 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
   }
 
   void FetchSignedTokens() {
-    payment_server_->get_credentials()->Request(
-        state().order_id, state().order_item_id,
-        CreateLambdaCallback(this, &PurchaseJob::OnSignedTokensFetched));
+    context()
+        .Get<PaymentService>()
+        .GetCredentials(state().order_id, state().order_item_id)
+        .Then(ContinueWith(this, &PurchaseJob::OnSignedTokensFetched));
   }
 
-  void OnSignedTokensFetched(mojom::Result result, mojom::CredsBatchPtr batch) {
-    if (result != mojom::Result::LEDGER_OK || !batch) {
+  void OnSignedTokensFetched(absl::optional<PaymentCredentials> credentials) {
+    if (!credentials) {
       context().LogError(FROM_HERE) << "Unable to fetch signed tokens";
       WaitForRetryThen(ContinueWith(this, &PurchaseJob::FetchSignedTokens));
       return;
@@ -361,20 +311,9 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
 
     backoff_.Reset();
 
-    std::vector<std::string> signed_tokens;
-    if (auto value = base::JSONReader::Read(batch->signed_creds)) {
-      if (value->is_list()) {
-        for (auto& item : value->GetList()) {
-          if (auto* s = item.GetIfString()) {
-            signed_tokens.push_back(*s);
-          }
-        }
-      }
-    }
-
     auto unblinded_tokens = context().Get<PrivacyPass>().UnblindTokens(
-        state().tokens, state().blinded_tokens, signed_tokens,
-        batch->batch_proof, batch->public_key);
+        state().tokens, state().blinded_tokens, credentials->signed_tokens,
+        credentials->batch_proof, credentials->public_key);
 
     if (!unblinded_tokens) {
       // TODO(zenparsing): How to recover? Keep retrying the server? What if
@@ -388,7 +327,7 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
           ContributionToken{.id = 0,
                             .value = kVotePrice,
                             .unblinded_token = std::move(unblinded),
-                            .public_key = batch->public_key});
+                            .public_key = credentials->public_key});
     }
 
     context()
@@ -399,7 +338,10 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
 
   void OnTokensInserted(bool success) {
     if (!success) {
-      // TODO(zenparsing): What to do?
+      // TODO(zenparsing): Is this correct?
+      context().LogError(FROM_HERE) << "Error saving contribution tokens";
+      WaitForRetryThen(ContinueWith(this, &PurchaseJob::FetchSignedTokens));
+      return;
     }
 
     state().status = PurchaseStatus::kComplete;
@@ -409,14 +351,18 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
   }
 
   void WaitForRetryThen(base::OnceCallback<void()> callback) {
-    // TODO(zenparsing): Does this need to be random?
     context()
         .Get<DelayGenerator>()
         .Delay(FROM_HERE, backoff_.GetNextDelay())
         .DiscardValueThen(std::move(callback));
   }
 
-  std::unique_ptr<endpoint::PaymentServer> payment_server_;
+  void CompleteWithError(const std::string& error) {
+    context().LogError(FROM_HERE) << error;
+    state().error = error;
+    Complete(false);
+  }
+
   BackoffDelay backoff_{kMinRetryDelay, kMaxRetryDelay};
 };
 
@@ -425,7 +371,7 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
 const char ContributionTokenVendor::kContextKey[] = "contribution-token-vendor";
 
 std::string ContributionTokenVendor::StartPurchase(double amount) {
-  int quantity = std::max(double(0), std::floor(amount / kVotePrice));
+  int quantity = std::max(0.0, std::floor(amount / kVotePrice));
   return context().Get<JobStore>().InitializeJobState<PurchaseJob>(
       PurchaseState{.quantity = quantity});
 }
