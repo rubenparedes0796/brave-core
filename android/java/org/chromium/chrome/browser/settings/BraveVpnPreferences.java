@@ -390,10 +390,9 @@ public class BraveVpnPreferences extends BravePreferenceFragment implements Brav
                 BraveVpnProfileUtils.getInstance().stopVpn(getActivity());
             }
             try {
-                BraveVpnProfileUtils.getInstance()
-                        .createVpnProfile(getActivity(), mHostname,
-                                braveVpnProfileCredentials.getUsername(),
-                                braveVpnProfileCredentials.getPassword());
+                BraveVpnProfileUtils.getInstance().createVpnProfile(getActivity(), mHostname,
+                        braveVpnProfileCredentials.getUsername(),
+                        braveVpnProfileCredentials.getPassword());
                 BraveVpnPrefUtils.setPurchaseToken(mPurchaseToken);
                 BraveVpnPrefUtils.setProductId(mProductId);
                 BraveVpnPrefUtils.setSubscriberCredential(mSubscriberCredential);
