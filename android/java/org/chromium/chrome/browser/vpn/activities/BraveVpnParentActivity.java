@@ -108,18 +108,9 @@ public abstract class BraveVpnParentActivity
 
     @Override
     public void onGetSubscriberCredential(String subscriberCredential, boolean isSuccess) {
-        if (isSuccess) {
-            InAppPurchaseWrapper.getInstance().processPurchases(BraveVpnParentActivity.this,
-                    InAppPurchaseWrapper.getInstance().queryPurchases());
-            this.mSubscriberCredential = subscriberCredential;
-            BraveVpnNativeWorker.getInstance().getTimezonesForRegions();
-        } else {
-            Toast.makeText(BraveVpnParentActivity.this, R.string.vpn_profile_creation_failed,
-                         Toast.LENGTH_SHORT)
-                    .show();
-            Log.e("BraveVPN", "BraveVpnParentActivity -> onGetSubscriberCredential : failed");
-            hideProgress();
-        }
+        this.mSubscriberCredential = subscriberCredential;
+        BraveVpnApiResponseUtils.handleOnGetSubscriberCredential(
+                BraveVpnParentActivity.this, isSuccess);
     };
 
     @Override

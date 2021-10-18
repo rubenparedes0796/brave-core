@@ -340,16 +340,8 @@ public class BraveVpnPreferences extends BravePreferenceFragment implements Brav
 
     @Override
     public void onGetSubscriberCredential(String subscriberCredential, boolean isSuccess) {
-        if (isSuccess) {
-            InAppPurchaseWrapper.getInstance().processPurchases(
-                    getActivity(), InAppPurchaseWrapper.getInstance().queryPurchases());
-            this.mSubscriberCredential = subscriberCredential;
-            BraveVpnNativeWorker.getInstance().getTimezonesForRegions();
-        } else {
-            Toast.makeText(getActivity(), R.string.vpn_profile_creation_failed, Toast.LENGTH_LONG)
-                    .show();
-            Log.e("BraveVPN", "BraveVpnPreferences -> onGetSubscriberCredential : failed");
-        }
+        this.mSubscriberCredential = subscriberCredential;
+        BraveVpnApiResponseUtils.handleOnGetSubscriberCredential(getActivity(), isSuccess);
     };
 
     @Override

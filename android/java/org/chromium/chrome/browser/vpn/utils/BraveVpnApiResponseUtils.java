@@ -10,9 +10,12 @@ package org.chromium.chrome.browser.vpn.utils;
 import android.app.Activity;
 
 import org.chromium.base.Log;
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.vpn.BraveVpnNativeWorker;
 import org.chromium.chrome.browser.vpn.utils.BraveVpnPrefUtils;
 import org.chromium.chrome.browser.vpn.utils.BraveVpnProfileUtils;
 import org.chromium.chrome.browser.vpn.utils.BraveVpnUtils;
+import org.chromium.chrome.browser.vpn.utils.InAppPurchaseWrapper;
 import org.chromium.ui.widget.Toast;
 
 import java.util.List;
@@ -32,5 +35,18 @@ public class BraveVpnApiResponseUtils {
                 .show();
         BraveVpnUtils.dismissProgressDialog();
         BraveVpnUtils.openBraveVpnPlansActivity(activity);
+    }
+
+    public static void handleOnGetSubscriberCredential(Activity activity, boolean isSuccess) {
+        if (isSuccess) {
+            InAppPurchaseWrapper.getInstance().processPurchases(
+                    activity, InAppPurchaseWrapper.getInstance().queryPurchases());
+            BraveVpnNativeWorker.getInstance().getTimezonesForRegions();
+        } else {
+            Toast.makeText(activity, R.string.vpn_profile_creation_failed, Toast.LENGTH_SHORT)
+                    .show();
+            Log.e("BraveVPN", "BraveVpnParentActivity -> onGetSubscriberCredential : failed");
+            BraveVpnUtils.dismissProgressDialog();
+        }
     }
 }
