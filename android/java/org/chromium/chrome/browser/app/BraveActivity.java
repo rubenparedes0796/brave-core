@@ -337,19 +337,27 @@ public abstract class BraveActivity<C extends ChromeActivityComponent>
                 BraveVpnPrefUtils.setProductId(mProductId);
                 BraveVpnPrefUtils.setPurchaseExpiry(purchaseExpiry);
                 BraveVpnPrefUtils.setSubscriptionPurchase(true);
-                if (!mIsVerification) {
-                    BraveVpnProfileUtils.getInstance().startStopVpn(BraveActivity.this);
+                if (BraveVpnPrefUtils.isResetConfiguration()) {
+                    Intent braveVpnProfileIntent =
+                            new Intent(BraveActivity.this, BraveVpnProfileActivity.class);
+                    startActivity(braveVpnProfileIntent);
+                    BraveVpnUtils.dismissProgressDialog();
                 } else {
-                    mIsVerification = false;
-                    if (BraveVpnProfileUtils.getInstance().isVPNConnected(BraveActivity.this)
-                            && !TextUtils.isEmpty(BraveVpnPrefUtils.getHostname())
-                            && !TextUtils.isEmpty(BraveVpnPrefUtils.getUsername())
-                            && !TextUtils.isEmpty(BraveVpnPrefUtils.getSubscriberCredential())
-                            && !TextUtils.isEmpty(BraveVpnPrefUtils.getApiAuthToken())) {
-                        BraveVpnNativeWorker.getInstance().verifyCredentials(
-                                BraveVpnPrefUtils.getHostname(), BraveVpnPrefUtils.getUsername(),
-                                BraveVpnPrefUtils.getSubscriberCredential(),
-                                BraveVpnPrefUtils.getApiAuthToken());
+                    if (!mIsVerification) {
+                        BraveVpnProfileUtils.getInstance().startStopVpn(BraveActivity.this);
+                    } else {
+                        mIsVerification = false;
+                        if (BraveVpnProfileUtils.getInstance().isVPNConnected(BraveActivity.this)
+                                && !TextUtils.isEmpty(BraveVpnPrefUtils.getHostname())
+                                && !TextUtils.isEmpty(BraveVpnPrefUtils.getUsername())
+                                && !TextUtils.isEmpty(BraveVpnPrefUtils.getSubscriberCredential())
+                                && !TextUtils.isEmpty(BraveVpnPrefUtils.getApiAuthToken())) {
+                            BraveVpnNativeWorker.getInstance().verifyCredentials(
+                                    BraveVpnPrefUtils.getHostname(),
+                                    BraveVpnPrefUtils.getUsername(),
+                                    BraveVpnPrefUtils.getSubscriberCredential(),
+                                    BraveVpnPrefUtils.getApiAuthToken());
+                        }
                     }
                 }
             } else {
