@@ -2869,6 +2869,18 @@ If you don't accept this request, VPN will not reconnect and your internet conne
     <message name="IDS_ACCESSIBILITY_NEW_TAB_PAGE" desc="Accessibility text to read aloud when the user focuses the new tab view.">
       New tab
     </message>
+    <message name="IDS_ALWAYS_ON_BRAVE_TEXT" desc="Always on vpn text">
+      You’ve already set Brave VPN to “Always on” in your device settings.
+    </message>
+    <message name="IDS_CONNECTION_ERROR" desc="Always on vpn text">
+      Connection error
+    </message>
+    <message name="IDS_ALWAYS_ON_DIALOG_TEXT" desc="Always on vpn text">
+      It appears you have other VPNs on this device set to “Always on”. To enable Brave Firewall + VPN, first disable this “Always on” setting for other VPNs before connecting again. If the problem persists, try uninstalling other VPNs.
+    </message>
+    <message name="IDS_OPEN_VPN_SETTINGS" desc="Always on vpn text">
+      Open VPN Settings
+    </message>
     </messages>
   </release>
 </grit>
