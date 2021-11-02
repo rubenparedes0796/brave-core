@@ -184,6 +184,10 @@ void BraveVpnService::OnGetResponse(
   if (success) {
     json_response = body;
   }
+  LOG(ERROR) << "BraveVPN"
+             << "status code : " << status;
+  LOG(ERROR) << "BraveVPN"
+             << "json_response : " << json_response;
   std::move(callback).Run(json_response, success);
 }
 

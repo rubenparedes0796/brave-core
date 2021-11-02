@@ -27,6 +27,7 @@ import org.chromium.chrome.browser.InternetConnection;
 import org.chromium.chrome.browser.settings.BravePreferenceFragment;
 import org.chromium.chrome.browser.vpn.BraveVpnNativeWorker;
 import org.chromium.chrome.browser.vpn.BraveVpnObserver;
+import org.chromium.chrome.browser.vpn.activities.BraveVpnProfileActivity;
 import org.chromium.chrome.browser.vpn.models.BraveVpnPrefModel;
 import org.chromium.chrome.browser.vpn.models.BraveVpnProfileCredentials;
 import org.chromium.chrome.browser.vpn.models.BraveVpnServerRegion;
@@ -303,12 +304,22 @@ public class BraveVpnPreferences extends BravePreferenceFragment implements Brav
             Purchase purchase = purchases.get(0);
             mBraveVpnPrefModel.setPurchaseToken(purchase.getPurchaseToken());
             mBraveVpnPrefModel.setProductId(purchase.getSkus().get(0).toString());
-            if (!isVerification || BraveVpnPrefUtils.isResetConfiguration()) {
+            if (BraveVpnPrefUtils.isResetConfiguration()) {
+                Log.e("BraveVPN", "verifyPurchase : vpn pref : 1");
+                Intent braveVpnProfileIntent =
+                        new Intent(getActivity(), BraveVpnProfileActivity.class);
+                getActivity().startActivity(braveVpnProfileIntent);
+                BraveVpnUtils.dismissProgressDialog();
+                return;
+            }
+            if (!isVerification) {
+                Log.e("BraveVPN", "verifyPurchase : vpn pref : 2");
                 BraveVpnNativeWorker.getInstance().getSubscriberCredential(
                         BraveVpnUtils.SUBSCRIPTION_PARAM_TEXT, mBraveVpnPrefModel.getProductId(),
                         BraveVpnUtils.IAP_ANDROID_PARAM_TEXT, mBraveVpnPrefModel.getPurchaseToken(),
                         getActivity().getPackageName());
             } else {
+                Log.e("BraveVPN", "verifyPurchase : vpn pref : 3");
                 BraveVpnNativeWorker.getInstance().verifyPurchaseToken(
                         mBraveVpnPrefModel.getPurchaseToken(), mBraveVpnPrefModel.getProductId(),
                         BraveVpnUtils.SUBSCRIPTION_PARAM_TEXT, getActivity().getPackageName());
