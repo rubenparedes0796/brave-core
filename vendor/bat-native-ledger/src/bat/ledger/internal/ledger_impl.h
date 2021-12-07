@@ -19,6 +19,7 @@
 #include "bat/ledger/internal/api/api.h"
 #include "bat/ledger/internal/bitflyer/bitflyer.h"
 #include "bat/ledger/internal/contribution/contribution.h"
+#include "bat/ledger/internal/core/callback_adapter.h"
 #include "bat/ledger/internal/database/database.h"
 #include "bat/ledger/internal/gemini/gemini.h"
 #include "bat/ledger/internal/legacy/media/media.h"
@@ -324,12 +325,6 @@ class LedgerImpl : public Ledger {
 
   void StartServices();
 
-  void OnStateInitialized(type::Result result, ResultCallback callback);
-
-  void InitializeDatabase(bool execute_create_script, ResultCallback callback);
-
-  void OnDatabaseInitialized(type::Result result, ResultCallback callback);
-
   void OnAllDone(type::Result result, ResultCallback callback);
 
   template <typename T>
@@ -358,6 +353,7 @@ class LedgerImpl : public Ledger {
   uint32_t last_shown_tab_id_ = -1;
   std::queue<std::function<void()>> ready_callbacks_;
   ReadyState ready_state_ = ReadyState::kUninitialized;
+  CallbackAdapter callback_adapter_;
 };
 
 }  // namespace ledger

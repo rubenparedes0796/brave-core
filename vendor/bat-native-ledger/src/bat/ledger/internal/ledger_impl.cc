@@ -11,6 +11,7 @@
 #include "bat/ledger/internal/common/time_util.h"
 #include "bat/ledger/internal/constants.h"
 #include "bat/ledger/internal/core/bat_ledger_context.h"
+#include "bat/ledger/internal/core/upgrade_manager.h"
 #include "bat/ledger/internal/ledger_impl.h"
 #include "bat/ledger/internal/legacy/media/helper.h"
 #include "bat/ledger/internal/legacy/static_values.h"
@@ -143,21 +144,12 @@ void LedgerImpl::Initialize(bool execute_create_script,
   }
 
   ready_state_ = ReadyState::kInitializing;
-  InitializeDatabase(execute_create_script, callback);
-}
 
-void LedgerImpl::InitializeDatabase(bool execute_create_script,
-                                    ResultCallback callback) {
-  DCHECK(ready_state_ == ReadyState::kInitializing);
-
-  ResultCallback finish_callback =
-      std::bind(&LedgerImpl::OnInitialized, this, _1, std::move(callback));
-
-  auto database_callback = std::bind(&LedgerImpl::OnDatabaseInitialized,
-      this,
-      _1,
-      finish_callback);
-  database()->Initialize(execute_create_script, database_callback);
+  context().Get<UpgradeManager>().Upgrade().Then(
+      callback_adapter_([this, callback](bool success) {
+        OnInitialized(CallbackAdapter::ResultCode(success),
+                      std::move(callback));
+      }));
 }
 
 void LedgerImpl::OnInitialized(type::Result result, ResultCallback callback) {
@@ -178,36 +170,6 @@ void LedgerImpl::OnInitialized(type::Result result, ResultCallback callback) {
   ready_state_ = ReadyState::kReady;
 
   callback(result);
-}
-
-void LedgerImpl::OnDatabaseInitialized(type::Result result,
-                                       ResultCallback callback) {
-  DCHECK(ready_state_ == ReadyState::kInitializing);
-
-  if (result != type::Result::LEDGER_OK) {
-    BLOG(0, "Database could not be initialized. Error: " << result);
-    callback(result);
-    return;
-  }
-
-  auto state_callback = std::bind(&LedgerImpl::OnStateInitialized,
-      this,
-      _1,
-      callback);
-
-  state()->Initialize(state_callback);
-}
-
-void LedgerImpl::OnStateInitialized(type::Result result,
-                                    ResultCallback callback) {
-  DCHECK(ready_state_ == ReadyState::kInitializing);
-
-  if (result != type::Result::LEDGER_OK) {
-    BLOG(0, "Failed to initialize state");
-    return;
-  }
-
-  callback(type::Result::LEDGER_OK);
 }
 
 void LedgerImpl::CreateWallet(ResultCallback callback) {
