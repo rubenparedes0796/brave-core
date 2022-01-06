@@ -1,0 +1,15 @@
+diff --git a/tools/perf/core/results_dashboard.py b/tools/perf/core/results_dashboard.py
+index 84a998a30c5781dcbd7bcc1e00682972455df595..64c2d500c0d2a466a1c689c34ff8167d95079fe2 100755
+--- a/tools/perf/core/results_dashboard.py
++++ b/tools/perf/core/results_dashboard.py
+@@ -59,6 +59,10 @@ class SendResultsFatalException(SendResultException):
+ 
+ 
+ def LuciAuthTokenGeneratorCallback():
++  #TODO: make one line patch? How?
++  sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'brave', 'tools', 'perf')))
++  from dashboard_auth import GetDashboardToken
++  return GetDashboardToken()
+   args = ['luci-auth', 'token']
+   p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+   if p.wait() == 0:

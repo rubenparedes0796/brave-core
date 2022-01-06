@@ -9,8 +9,12 @@
 The tool performs OAuth2 flow, stores/loads credentials, refreshes a token.
 Returns a valid token to stdout if succeeded.
 """
-import os.path
 
+import logging
+import os.path
+import sys
+
+#vpython -m pip install google-auth google-auth-oauthlib
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -21,19 +25,42 @@ PERF_CREDENTIAL_FILE_NAME = '.perf_dashboard_credentials.json'
 credential_file = os.path.join(os.path.expanduser(
     "~"), PERF_CREDENTIAL_FILE_NAME)
 
-credentials = None
 
-if os.path.exists(credential_file):
-  credentials = Credentials.from_authorized_user_file(credential_file, SCOPES)
+def GetDashboardCredentials():
+  credentials = None
 
-if credentials and credentials.expired and credentials.refresh_token:
-  credentials.refresh(Request())
+  if os.path.exists(credential_file):
+    credentials = Credentials.from_authorized_user_file(
+        credential_file, SCOPES)
 
-if not credentials or not credentials.valid or credentials.expired:
-  flow = InstalledAppFlow.from_client_secrets_file(CLIENT_ID_FILE, SCOPES)
-  credentials = flow.run_console()
+  if credentials and credentials.expired and credentials.refresh_token:
+    credentials.refresh(Request())
 
-  with open(credential_file, 'w') as credentials_dat:
-    credentials_dat.write(credentials.to_json())
+  if not credentials or not credentials.valid or credentials.expired:
+    flow = InstalledAppFlow.from_client_secrets_file(CLIENT_ID_FILE, SCOPES)
+    credentials = flow.run_console()
 
-print(credentials.token)
+    with open(credential_file, 'w') as credentials_dat:
+      credentials_dat.write(credentials.to_json())
+  return credentials
+
+
+def GetDashboardToken():
+  credentials = GetDashboardCredentials()
+  if credentials == None:
+     raise RuntimeError('Error generating authentication token')
+  return credentials.token
+
+
+def main():
+  try:
+    token = GetDashboardToken()
+    print(token)
+  except Exception as e:
+    logging.error(e)
+    return 1
+  return 0
+
+
+if __name__ == '__main__':
+  sys.exit(main())
