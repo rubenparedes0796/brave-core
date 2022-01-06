@@ -3,23 +3,21 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef BRAVE_VENDOR_BAT_NATIVE_LEDGER_SRC_BAT_LEDGER_INTERNAL_CORE_UPGRADE_MANAGER_H_
-#define BRAVE_VENDOR_BAT_NATIVE_LEDGER_SRC_BAT_LEDGER_INTERNAL_CORE_UPGRADE_MANAGER_H_
+#ifndef BRAVE_VENDOR_BAT_NATIVE_LEDGER_SRC_BAT_LEDGER_INTERNAL_REWARDS_WALLET_ANONYMOUS_WALLET_MANAGER_H_
+#define BRAVE_VENDOR_BAT_NATIVE_LEDGER_SRC_BAT_LEDGER_INTERNAL_REWARDS_WALLET_ANONYMOUS_WALLET_MANAGER_H_
 
 #include "bat/ledger/internal/core/bat_ledger_context.h"
 #include "bat/ledger/internal/core/future.h"
 
 namespace ledger {
 
-class UpgradeManager : public BATLedgerContext::Object {
+class AnonymousWalletManager : public BATLedgerContext::Object {
  public:
   static const char kContextKey[];
 
-  Future<bool> Initialize();
-
-  Future<bool> UpgradeToVersionForTesting(int version);
+  Future<absl::optional<double>> GetBalance();
 };
 
 }  // namespace ledger
 
-#endif  // BRAVE_VENDOR_BAT_NATIVE_LEDGER_SRC_BAT_LEDGER_INTERNAL_CORE_UPGRADE_MANAGER_H_
+#endif  // BRAVE_VENDOR_BAT_NATIVE_LEDGER_SRC_BAT_LEDGER_INTERNAL_REWARDS_WALLET_ANONYMOUS_WALLET_MANAGER_H_

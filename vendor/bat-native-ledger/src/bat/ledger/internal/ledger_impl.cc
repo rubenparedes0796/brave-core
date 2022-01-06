@@ -10,8 +10,9 @@
 #include "bat/ledger/internal/common/security_util.h"
 #include "bat/ledger/internal/common/time_util.h"
 #include "bat/ledger/internal/constants.h"
+#include "bat/ledger/internal/contribution/contribution_engine.h"
 #include "bat/ledger/internal/core/bat_ledger_context.h"
-#include "bat/ledger/internal/core/upgrade_manager.h"
+#include "bat/ledger/internal/core/bat_ledger_initializer.h"
 #include "bat/ledger/internal/ledger_impl.h"
 #include "bat/ledger/internal/legacy/media/helper.h"
 #include "bat/ledger/internal/legacy/static_values.h"
@@ -127,7 +128,8 @@ void LedgerImpl::StartServices() {
   DCHECK(ready_state_ == ReadyState::kInitializing);
 
   publisher()->SetPublisherServerListTimer();
-  contribution()->SetReconcileTimer();
+  // TODO(zenparsing): Handled by ContributionScheduler
+  // contribution()->SetReconcileTimer();
   promotion()->Refresh(false);
   contribution()->Initialize();
   promotion()->Initialize();
@@ -145,7 +147,7 @@ void LedgerImpl::Initialize(bool execute_create_script,
 
   ready_state_ = ReadyState::kInitializing;
 
-  context().Get<UpgradeManager>().Upgrade().Then(
+  context().Get<BATLedgerInitializer>().Initialize().Then(
       callback_adapter_([this, callback](bool success) {
         OnInitialized(CallbackAdapter::ResultCode(success),
                       std::move(callback));
@@ -181,7 +183,13 @@ void LedgerImpl::OneTimeTip(const std::string& publisher_key,
                             double amount,
                             ResultCallback callback) {
   WhenReady([this, publisher_key, amount, callback]() {
-    contribution()->OneTimeTip(publisher_key, amount, callback);
+    context()
+        .Get<ContributionEngine>()
+        .SendOneTimeContribution(publisher_key, amount)
+        .Then(callback_adapter_([callback](bool success) {
+          callback(CallbackAdapter::ResultCode(success));
+        }));
+    // contribution()->OneTimeTip(publisher_key, amount, callback);
   });
 }
 

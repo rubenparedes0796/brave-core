@@ -6,6 +6,7 @@
 #include "bat/ledger/internal/core/upgrades/upgrade_30.h"
 
 #include "bat/ledger/internal/core/upgrades/migration_job.h"
+#include "bat/ledger/ledger_client.h"
 #include "bat/ledger/option_keys.h"
 
 namespace ledger {

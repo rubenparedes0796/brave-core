@@ -14,6 +14,7 @@
 #include "base/strings/stringprintf.h"
 #include "bat/ledger/global_constants.h"
 #include "bat/ledger/internal/constants.h"
+#include "bat/ledger/internal/contribution/contribution_engine.h"
 #include "bat/ledger/internal/ledger_impl.h"
 #include "bat/ledger/internal/legacy/static_values.h"
 #include "bat/ledger/internal/publisher/prefix_util.h"
@@ -365,6 +366,10 @@ void Publisher::SaveVisitInternal(
     auto callback = std::bind(&Publisher::OnPublisherInfoSaved,
         this,
         _1);
+
+    // TODO(zenparsing): Save to new tables.
+    ledger_->context().Get<ContributionEngine>().AddPublisherVisit(
+        publisher_key, base::Seconds(duration));
 
     ledger_->database()->SaveActivityInfo(std::move(publisher_info), callback);
   }

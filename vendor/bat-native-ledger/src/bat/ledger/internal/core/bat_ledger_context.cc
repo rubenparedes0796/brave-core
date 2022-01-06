@@ -33,6 +33,17 @@ BATLedgerContext::Options GetOptions(LedgerClient* ledger_client) {
   DCHECK(ledger_client);
   BATLedgerContext::Options options;
   options.environment = GetEnvironment();
+
+  // TODO(zenparsing): I'd like to get rid of this option, and just have a
+  // button on rewards internals that will trigger scheduled contributions.
+  options.contribution_interval =
+      ledger::reconcile_interval > 0
+          ? base::Minutes(ledger::reconcile_interval)
+          : base::Seconds(constant::kReconcileInterval);
+
+  options.auto_contribute_allowed =
+      !ledger_client->GetBooleanOption(option::kIsBitflyerRegion);
+
   return options;
 }
 

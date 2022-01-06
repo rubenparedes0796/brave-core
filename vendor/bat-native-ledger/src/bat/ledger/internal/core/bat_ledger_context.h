@@ -17,6 +17,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
+#include "base/time/time.h"
 
 namespace ledger {
 
@@ -79,6 +80,8 @@ class BATLedgerContext : private base::SupportsUserData {
 
   struct Options {
     Environment environment = Environment::kProduction;
+    base::TimeDelta contribution_interval;
+    bool auto_contribute_allowed;
   };
 
   // NOTE: Values are based on the original logging design where each level from

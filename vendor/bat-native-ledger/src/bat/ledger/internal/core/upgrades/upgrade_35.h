@@ -8,6 +8,7 @@
 
 #include "bat/ledger/internal/core/bat_ledger_job.h"
 #include "bat/ledger/internal/core/future.h"
+#include "bat/ledger/public/interfaces/ledger.mojom.h"
 
 namespace ledger {
 
