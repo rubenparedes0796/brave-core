@@ -1,0 +1,13 @@
+diff --git a/tools/perf/page_sets/data/system_health_desktop.json b/tools/perf/page_sets/data/system_health_desktop.json
+index 483e3cf2dbb064626942e44deccc3a6054fc1579..08aae9aeed19e973aa7450dfd5087bb63c74c4fb 100644
+--- a/tools/perf/page_sets/data/system_health_desktop.json
++++ b/tools/perf/page_sets/data/system_health_desktop.json
+@@ -233,7 +233,7 @@
+             "win": "system_health_desktop_047.wprgo"
+         },
+         "load:media:youtube:2018": {
+-            "DEFAULT": "system_health_desktop_cef8441ac0.wprgo"
++            "DEFAULT": "system_health_desktop_81f7c27d9f.wprgo"
+         },
+         "load:media:youtubelivingroom:2020": {
+             "DEFAULT": "system_health_desktop_ffb5f36c56.wprgo"
