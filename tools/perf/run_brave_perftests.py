@@ -37,9 +37,9 @@ src_dir = os.path.abspath(
 
 test_config_file_path = os.path.join(src_dir, 'brave', 'tools', 'perf',
                                      'perftest_config.json')
-config = {}
+json_config = {}
 with open(test_config_file_path, 'r') as config_file:
-  config = json.load(config_file)
+  json_config = json.load(config_file)
 
 # Workaround to add our wpr files
 page_set_data_dir = os.path.join(src_dir, 'brave', 'tools', 'perf',
@@ -60,20 +60,20 @@ def GetRevisionNumberAndHash(revision):
   return [rev_number, hash]
 
 
-def RunTest(binary, benchmark, stories, pageset_repeat, out_dir, extra_args=[]):
+def RunTest(binary, config, out_dir, extra_args=[]):
   args = [
       sys.executable,
       os.path.join(src_dir, 'testing', 'scripts', 'run_performance_tests.py'),
       os.path.join(src_dir, 'tools', 'perf', 'run_benchmark')
   ]
-  args.append('--benchmarks=%s' % benchmark)
+  args.append('--benchmarks=%s' % config['benchmark'])
   args.append('--browser=exact')
   args.append('--browser-executable=' + binary + '')
-  args.append('--isolated-script-test-output=%s' % out_dir + '\\' + benchmark +
-              '\\output.json')
-  args.append('--pageset-repeat=%d' % pageset_repeat)
-  if stories:
-    for story in stories:
+  args.append('--isolated-script-test-output=%s' % out_dir + '\\' +
+              config['benchmark'] + '\\output.json')
+  args.append('--pageset-repeat=%d' % config['pageset_repeat'])
+  if 'stories' in config:
+    for story in config['stories']:
       args.append('--story=' + story)
 
   args.extend(extra_args)
@@ -138,11 +138,10 @@ def TestBinary(product,
                report=True):
   failedLogs = []
   has_failure = False
-  for test in config['tests']:
-    benchmark = test['benchmark']
+  for test_config in json_config['tests']:
+    benchmark = test_config['benchmark']
     try:
-      RunTest(binary, benchmark, test['stories'], test['pageset_repeat'],
-              output_dir, extra_args)
+      RunTest(binary, test_config, output_dir, extra_args)
     except subprocess.CalledProcessError:
       has_failure = True
       error = 'Test case %s failed on revision %s' % (benchmark, revision)

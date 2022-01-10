@@ -17,7 +17,7 @@
       ]
     },
     {
-      "benchmark": "system_health.speedometer2",
+      "benchmark": "speedometer2",
       "pageset_repeat": 1
     }
 
