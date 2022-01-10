@@ -3,7 +3,6 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # you can obtain one at http://mozilla.org/MPL/2.0/.
-
 """A tool to perform authorization to https://brave-perf-dashboard.appspot.com/
 
 The tool performs OAuth2 flow, stores/loads credentials, refreshes a token.
@@ -22,16 +21,15 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 SCOPES = ['openid', 'https://www.googleapis.com/auth/userinfo.email']
 CLIENT_ID_FILE = 'perf_dashboard_client_id.json'
 PERF_CREDENTIAL_FILE_NAME = '.perf_dashboard_credentials.json'
-credential_file = os.path.join(os.path.expanduser(
-    "~"), PERF_CREDENTIAL_FILE_NAME)
+credential_file = os.path.join(os.path.expanduser("~"),
+                               PERF_CREDENTIAL_FILE_NAME)
 
 
 def GetDashboardCredentials():
   credentials = None
 
   if os.path.exists(credential_file):
-    credentials = Credentials.from_authorized_user_file(
-        credential_file, SCOPES)
+    credentials = Credentials.from_authorized_user_file(credential_file, SCOPES)
 
   if credentials and credentials.expired and credentials.refresh_token:
     credentials.refresh(Request())
@@ -48,7 +46,7 @@ def GetDashboardCredentials():
 def GetDashboardToken():
   credentials = GetDashboardCredentials()
   if credentials == None:
-     raise RuntimeError('Error generating authentication token')
+    raise RuntimeError('Error generating authentication token')
   return credentials.token
 
 
