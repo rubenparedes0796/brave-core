@@ -19,17 +19,18 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 SCOPES = ['openid', 'https://www.googleapis.com/auth/userinfo.email']
-CLIENT_ID_FILE = 'perf_dashboard_client_id.json'
-PERF_CREDENTIAL_FILE_NAME = '.perf_dashboard_credentials.json'
-credential_file = os.path.join(os.path.expanduser("~"),
-                               PERF_CREDENTIAL_FILE_NAME)
+CLIENT_ID_FILE = os.path.join(os.path.dirname(__file__),
+                              'perf_dashboard_client_id.json')
+PERF_CREDENTIAL_FILE = os.path.join(os.path.expanduser("~"),
+                                    '.perf_dashboard_credentials.json')
 
 
 def GetDashboardCredentials():
   credentials = None
 
-  if os.path.exists(credential_file):
-    credentials = Credentials.from_authorized_user_file(credential_file, SCOPES)
+  if os.path.exists(PERF_CREDENTIAL_FILE):
+    credentials = Credentials.from_authorized_user_file(PERF_CREDENTIAL_FILE,
+                                                        SCOPES)
 
   if credentials and credentials.expired and credentials.refresh_token:
     credentials.refresh(Request())
@@ -38,7 +39,7 @@ def GetDashboardCredentials():
     flow = InstalledAppFlow.from_client_secrets_file(CLIENT_ID_FILE, SCOPES)
     credentials = flow.run_console()
 
-    with open(credential_file, 'w') as credentials_dat:
+    with open(PERF_CREDENTIAL_FILE, 'w') as credentials_dat:
       credentials_dat.write(credentials.to_json())
   return credentials
 

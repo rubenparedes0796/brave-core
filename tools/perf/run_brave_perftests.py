@@ -32,8 +32,8 @@ from zipfile import ZipFile
 from urllib import urlopen
 import argparse
 
-src_dir = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir,
-                       os.pardir)
+src_dir = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
 
 test_config_file_path = os.path.join(src_dir, 'brave', 'tools', 'perf',
                                      'perftest_config.json')
@@ -46,6 +46,8 @@ page_set_data_dir = os.path.join(src_dir, 'brave', 'tools', 'perf',
                                  'page_sets_data')
 chromium_page_set_data_dir = os.path.join(src_dir, 'tools', 'perf', 'page_sets',
                                           'data')
+for item in os.listdir(page_set_data_dir):
+  shutil.copy(os.path.join(page_set_data_dir, item), chromium_page_set_data_dir)
 
 
 def GetRevisionNumberAndHash(revision):
