@@ -1,0 +1,25 @@
+{
+  "tests": [
+    {
+      "benchmark": "system_health.common_desktop",
+      "pageset_repeat": 10,
+      "stories": [
+        "load:chrome:blank",
+        "load:media:youtube:2018"
+      ]
+    },
+    {
+      "benchmark": "system_health.memory_desktop",
+      "pageset_repeat": 10,
+      "stories": [
+        "load:chrome:blank",
+        "load:media:youtube:2018"
+      ]
+    },
+    {
+      "benchmark": "system_health.speedometer2",
+      "pageset_repeat": 1
+    }
+
+  ]
+}
