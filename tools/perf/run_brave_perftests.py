@@ -53,9 +53,9 @@ for item in os.listdir(page_set_data_dir):
 def GetRevisionNumberAndHash(revision):
   brave_dir = os.path.join(src_dir, 'brave')
   subprocess.check_call(['git', 'fetch', 'origin', revision], cwd=brave_dir)
-  hash = subprocess.check_output(['git', 'rev-parse', revision],
+  hash = subprocess.check_output(['git', 'rev-parse', 'FETCH_HEAD'],
                                  cwd=brave_dir).rstrip()
-  rev_number = subprocess.check_output(['git', 'rev-list', '--count', revision],
+  rev_number = subprocess.check_output(['git', 'rev-list', '--count', 'FETCH_HEAD'],
                                        cwd=brave_dir).rstrip()
   return [rev_number, hash]
 
@@ -97,11 +97,11 @@ def DownloadAndUnpackBinary(output_directory, url):
 def ReportToDashboard(product, configuration_name, revision, output_dir):
   args = [
       sys.executable,
-      os.path.join(src_dir, 'testing', 'scripts', 'process_perf_results.py')
+      os.path.join(src_dir, 'tools', 'perf', 'process_perf_results.py')
   ]
   args.append('--configuration-name=%s' % configuration_name)
   args.append('--task-output-dir=%s' % output_dir)
-  args.append('--output-json=result.json')
+  args.append('--output-json=%s' % os.path.join(output_dir, 'results.json'))
 
   [revision_number, git_hash] = GetRevisionNumberAndHash(revision)
   build_properties = {}
@@ -124,9 +124,9 @@ def ReportToDashboard(product, configuration_name, revision, output_dir):
   build_properties['got_v8_revision'] = revision_number
   build_properties['got_webrtc_revision'] = revision_number
   build_properties['git_revision'] = git_hash
-  build_properties_serialized = json5.dumps(build_properties)
+  build_properties_serialized = json.dumps(build_properties)
   args.append('--build-properties=%s' % build_properties_serialized)
-  subprocess.run(args, check=True)
+  subprocess.check_call(args)
 
 
 def TestBinary(product,
