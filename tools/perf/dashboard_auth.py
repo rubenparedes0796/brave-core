@@ -19,8 +19,8 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 SCOPES = ['openid', 'https://www.googleapis.com/auth/userinfo.email']
-CLIENT_ID_FILE = os.path.join(os.path.dirname(__file__),
-                              'perf_dashboard_client_id.json')
+CLIENT_ID_FILE = os.path.join(os.path.expanduser("~"),
+                              '.perf_dashboard_client_id.json')
 PERF_CREDENTIAL_FILE = os.path.join(os.path.expanduser("~"),
                                     '.perf_dashboard_credentials.json')
 
