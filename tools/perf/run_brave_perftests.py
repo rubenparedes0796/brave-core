@@ -44,6 +44,12 @@ config = {}
 with open(test_config_file_path, 'r') as config_file:
     config = json.load(config_file)
 
+# Workaround to add our wpr files
+page_set_data_dir = os.path.join(
+    src_dir, 'brave', 'tools', 'perf', 'page_sets_data')
+chromium_page_set_data_dir = os.path.join(
+    src_dir, 'tools', 'perf', 'page_sets', 'data')
+
 
 def GetRevisionNumberAndHash(revision):
     brave_dir = os.path.join(src_dir, 'brave')
