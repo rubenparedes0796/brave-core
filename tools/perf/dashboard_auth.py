@@ -25,8 +25,9 @@ PERF_CREDENTIAL_FILE = os.path.join(os.path.expanduser("~"),
                                     '.perf_dashboard_credentials.json')
 
 
-def GetDashboardCredentials():
+def GetDashboardCredentials(can_be_interactive = False):
   credentials = None
+  should_store_new_credentials = False
 
   if os.path.exists(PERF_CREDENTIAL_FILE):
     credentials = Credentials.from_authorized_user_file(PERF_CREDENTIAL_FILE,
@@ -34,18 +35,24 @@ def GetDashboardCredentials():
 
   if credentials and credentials.expired and credentials.refresh_token:
     credentials.refresh(Request())
+    should_store_new_credentials = True
 
   if not credentials or not credentials.valid or credentials.expired:
-    flow = InstalledAppFlow.from_client_secrets_file(CLIENT_ID_FILE, SCOPES)
-    credentials = flow.run_console()
+    if can_be_interactive:
+      flow = InstalledAppFlow.from_client_secrets_file(CLIENT_ID_FILE, SCOPES)
+      credentials = flow.run_console()
+      should_store_new_credentials = True
+    else:
+      raise RuntimeError('No valid credentials for brave-perf-dashboard')
 
+  if should_store_new_credentials:
     with open(PERF_CREDENTIAL_FILE, 'w') as credentials_dat:
       credentials_dat.write(credentials.to_json())
   return credentials
 
 
-def GetDashboardToken():
-  credentials = GetDashboardCredentials()
+def GetDashboardToken(can_be_interactive = False):
+  credentials = GetDashboardCredentials(can_be_interactive)
   if credentials == None:
     raise RuntimeError('Error generating authentication token')
   return credentials.token
@@ -53,7 +60,7 @@ def GetDashboardToken():
 
 def main():
   try:
-    token = GetDashboardToken()
+    token = GetDashboardToken(can_be_interactive = True)
     print(token)
   except Exception as e:
     logging.error(e)
