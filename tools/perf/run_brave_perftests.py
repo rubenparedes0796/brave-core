@@ -139,27 +139,29 @@ def TestBinary(product,
                revision,
                binary,
                output_dir,
-               extra_args=[],
-               report=True):
+               extra_args,
+               skip_report,
+               skip_run):
   failedLogs = []
   has_failure = False
   for test_config in json_config['tests']:
     benchmark = test_config['benchmark']
-    try:
-      RunTest(binary, test_config, output_dir, extra_args)
-    except subprocess.CalledProcessError:
-      has_failure = True
-      error = 'Test case %s failed on revision %s' % (benchmark, revision)
-      error += '\nLogs: ' + os.path.join(output_dir, benchmark, benchmark,
-                                         'benchmark_log.txt')
-      logging.error(error)
-      failedLogs.append(error)
+    if not skip_run:
+      try:
+        RunTest(binary, test_config, output_dir, extra_args)
+      except subprocess.CalledProcessError:
+        has_failure = True
+        error = 'Test case %s failed on revision %s' % (benchmark, revision)
+        error += '\nLogs: ' + os.path.join(output_dir, benchmark, benchmark,
+                                           'benchmark_log.txt')
+        logging.error(error)
+        failedLogs.append(error)
   try:
     if has_failure:
       error = 'Skip reporting because errors for binary ' + binary
       logging.error(error)
       failedLogs.append(error)
-    elif not report:
+    elif skip_report:
       logging.info('skip reporting because report==False')
     else:
       ReportToDashboard(product, configuration_name, revision, output_dir)
@@ -186,24 +188,29 @@ parser.add_argument('--platform', required=True, type=str)
 parser.add_argument('--extra_args', action='append', default=[])
 parser.add_argument('--overwrite_results', action='store_true')
 parser.add_argument('--skip_reporting', action='store_true')
+parser.add_argument('--report_only', action='store_true')
 args = parser.parse_args()
 
 for tag in args.tags:
   url = GetBraveUrl(tag, args.platform)
   out_dir = os.path.join(args.work_directory, tag)
 
-  DownloadAndUnpackBinary(out_dir, url)
+  if not args.report_only:
+    DownloadAndUnpackBinary(out_dir, url)
 
-  if args.overwrite_results:
+  if args.overwrite_results and not args.report_only:
     shutil.rmtree(os.path.join(out_dir, 'results'), True)
-  [success,
-   logs] = TestBinary('brave', args.configuration_name, 'refs/tags/' + tag,
-                      os.path.join(out_dir, 'brave.exe'),
-                      os.path.join(out_dir, 'results'), args.extra_args,
-                      not args.skip_reporting)
-  if not success:
+
+  [binary_success,
+   binary_logs] = TestBinary('brave', args.configuration_name,
+                             'refs/tags/' + tag,
+                             os.path.join(out_dir, 'brave.exe'),
+                             os.path.join(out_dir, 'results'), args.extra_args,
+                             args.skip_reporting,
+                             args.report_only)
+  if not binary_success:
     has_failure = True
-    failedLogs.extend(logs)
+    failedLogs.extend(binary_logs)
 
 print('\n\nSummary:\n')
 if has_failure:
