@@ -60,8 +60,11 @@ def GetRevisionNumberAndHash(revision):
   subprocess.check_call(['git', 'fetch', 'origin', revision], cwd=brave_dir)
   hash = subprocess.check_output(['git', 'rev-parse', 'FETCH_HEAD'],
                                  cwd=brave_dir).rstrip()
-  rev_number = subprocess.check_output(
-      ['git', 'rev-list', '--count', 'FETCH_HEAD'], cwd=brave_dir).rstrip()
+  rev_number_args = [
+      'git', 'rev-list', '--topo-order', '--first-parent', '--count',
+      'FETCH_HEAD'
+  ]
+  rev_number = subprocess.check_output(rev_number_args, cwd=brave_dir).rstrip()
   return [rev_number, hash]
 
 
