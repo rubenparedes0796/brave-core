@@ -50,13 +50,18 @@ for item in os.listdir(page_set_data_dir):
   shutil.copy(os.path.join(page_set_data_dir, item), chromium_page_set_data_dir)
 
 
+# Returns pair [revision_number, sha1]. revision_number is a number "primary"
+# commits from the begging to `revision`.
+# Use this to get the commit from a revision number:
+# git rev-list --topo-order --first-parent --reverse origin/master
+# | head -n <rev_num> | tail -n 1 | git log -n 1 --stdin
 def GetRevisionNumberAndHash(revision):
   brave_dir = os.path.join(src_dir, 'brave')
   subprocess.check_call(['git', 'fetch', 'origin', revision], cwd=brave_dir)
   hash = subprocess.check_output(['git', 'rev-parse', 'FETCH_HEAD'],
                                  cwd=brave_dir).rstrip()
-  rev_number = subprocess.check_output(['git', 'rev-list', '--count', 'FETCH_HEAD'],
-                                       cwd=brave_dir).rstrip()
+  rev_number = subprocess.check_output(
+      ['git', 'rev-list', '--count', 'FETCH_HEAD'], cwd=brave_dir).rstrip()
   return [rev_number, hash]
 
 
