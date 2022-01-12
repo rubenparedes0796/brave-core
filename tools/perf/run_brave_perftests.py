@@ -29,7 +29,8 @@ import logging
 import shutil
 from StringIO import StringIO
 from zipfile import ZipFile
-from urllib import urlopen
+from urllib import urlopen, urlretrieve
+from distutils.dir_util import copy_tree
 import argparse
 
 src_dir = os.path.abspath(
@@ -90,6 +91,7 @@ def RunTest(binary, config, out_dir, extra_args=[]):
 
 
 BRAVE_URL = 'https://github.com/brave/brave-browser/releases/download/%s/brave-%s-%s.zip'
+BRAVE_WIN_INSTALLER_URL = 'https://github.com/brave/brave-browser/releases/download/%s/BraveBrowserStandaloneSilentNightlySetup.exe'
 
 
 def GetBraveUrl(tag, platform):
@@ -100,7 +102,40 @@ def DownloadAndUnpackBinary(output_directory, url):
   resp = urlopen(url)
   zipfile = ZipFile(StringIO(resp.read()))
   zipfile.extractall(output_directory)
+  return os.path.join(output_directory, 'brave.exe')
 
+def DownloadInstallAndCopy(output_directory, tag):
+  if not os.path.exists(out_dir):
+    os.makedirs(out_dir)
+  url = BRAVE_WIN_INSTALLER_URL % tag
+  installer_filename = os.path.join(out_dir, os.pardir, 'installer_%s_tag.exe' % tag)
+  urlretrieve(url, installer_filename)
+  subprocess.check_call(['start', '/b', '/wait', installer_filename],shell=True)
+  try:
+    subprocess.check_call(['taskkill.exe', '/f', '/im', 'brave.exe'])
+  except subprocess.CalledProcessError:
+    logging.info('no brave.exe to kill')
+
+  install_path = os.path.join(os.path.expanduser("~"), 'AppData', 'Local',
+                              'BraveSoftware', 'Brave-Browser-Nightly',
+                              'Application')
+  full_version = None
+  copy_tree(install_path, output_directory)
+  for file in os.listdir(install_path):
+    print (file, tag[2:])
+    if file.endswith(tag[2:]):
+      assert(full_version == None)
+      full_version = file
+  assert(full_version != None)
+  setup_filename = os.path.join(install_path, full_version, 'Installer',
+                                'setup.exe')
+  subprocess.check_call([
+      'start', '/b', '/wait', setup_filename, '--uninstall',
+      '--force-uninstall', '--chrome-sxs'
+  ],
+                        shell=True)
+  shutil.rmtree(install_path, True)
+  return os.path.join(out_dir, 'brave.exe')
 
 def ReportToDashboard(product, configuration_name, revision, output_dir):
   args = [
@@ -188,6 +223,7 @@ parser.add_argument('--tags',
 parser.add_argument('--work_directory', required=True, type=str)
 parser.add_argument('--configuration_name', required=True, type=str)
 parser.add_argument('--platform', required=True, type=str)
+parser.add_argument('--use_win_installer', action='store_true')
 parser.add_argument('--extra_args', action='append', default=[])
 parser.add_argument('--overwrite_results', action='store_true')
 parser.add_argument('--skip_reporting', action='store_true')
@@ -198,8 +234,13 @@ for tag in args.tags:
   url = GetBraveUrl(tag, args.platform)
   out_dir = os.path.join(args.work_directory, tag)
 
+  binary_path = None
   if not args.report_only:
-    DownloadAndUnpackBinary(out_dir, url)
+    if args.use_win_installer:
+      binary_path = DownloadInstallAndCopy(out_dir, tag)
+    else:
+      binary_path = DownloadAndUnpackBinary(out_dir, url)
+
 
   if args.overwrite_results and not args.report_only:
     shutil.rmtree(os.path.join(out_dir, 'results'), True)
@@ -207,7 +248,7 @@ for tag in args.tags:
   [binary_success,
    binary_logs] = TestBinary('brave', args.configuration_name,
                              'refs/tags/' + tag,
-                             os.path.join(out_dir, 'brave.exe'),
+                             binary_path,
                              os.path.join(out_dir, 'results'), args.extra_args,
                              args.skip_reporting,
                              args.report_only)
