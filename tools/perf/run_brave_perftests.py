@@ -173,20 +173,17 @@ def ReportToDashboard(product, configuration_name, revision, output_dir):
 
 
 def TestBinary(product,
-               configuration_name,
                revision,
                binary,
                output_dir,
-               extra_args,
-               skip_report,
-               skip_run):
+               args):
   failedLogs = []
   has_failure = False
   for test_config in json_config['tests']:
     benchmark = test_config['benchmark']
-    if not skip_run:
+    if not args.report_only:
       try:
-        RunTest(binary, test_config, output_dir, extra_args)
+        RunTest(binary, test_config, output_dir, args.extra_args)
       except subprocess.CalledProcessError:
         has_failure = True
         error = 'Test case %s failed on revision %s' % (benchmark, revision)
@@ -195,14 +192,14 @@ def TestBinary(product,
         logging.error(error)
         failedLogs.append(error)
   try:
-    if has_failure:
+    if has_failure and not args.report_on_failure:
       error = 'Skip reporting because errors for binary ' + binary
       logging.error(error)
       failedLogs.append(error)
-    elif skip_report:
+    elif args.skip_report:
       logging.info('skip reporting because report==False')
     else:
-      ReportToDashboard(product, configuration_name, revision, output_dir)
+      ReportToDashboard(product, args.configuration_name, revision, output_dir)
 
   except subprocess.CalledProcessError:
     has_failure = True
@@ -226,8 +223,9 @@ parser.add_argument('--platform', required=True, type=str)
 parser.add_argument('--use_win_installer', action='store_true')
 parser.add_argument('--extra_args', action='append', default=[])
 parser.add_argument('--overwrite_results', action='store_true')
-parser.add_argument('--skip_reporting', action='store_true')
+parser.add_argument('--skip_report', action='store_true')
 parser.add_argument('--report_only', action='store_true')
+parser.add_argument('--report_on_failure', action='store_true')
 args = parser.parse_args()
 
 for tag in args.tags:
@@ -246,12 +244,11 @@ for tag in args.tags:
     shutil.rmtree(os.path.join(out_dir, 'results'), True)
 
   [binary_success,
-   binary_logs] = TestBinary('brave', args.configuration_name,
+   binary_logs] = TestBinary('brave',
                              'refs/tags/' + tag,
                              binary_path,
-                             os.path.join(out_dir, 'results'), args.extra_args,
-                             args.skip_reporting,
-                             args.report_only)
+                             os.path.join(out_dir, 'results'),
+                             args)
   if not binary_success:
     has_failure = True
     failedLogs.extend(binary_logs)
