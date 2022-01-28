@@ -5,6 +5,8 @@
 
 #include "bat/ads/new_tab_page_ad_wallpaper_focal_point_info.h"
 
+#include <tuple>
+
 namespace ads {
 
 NewTabPageAdWallpaperFocalPointInfo::NewTabPageAdWallpaperFocalPointInfo() =
@@ -15,5 +17,14 @@ NewTabPageAdWallpaperFocalPointInfo::NewTabPageAdWallpaperFocalPointInfo(
 
 NewTabPageAdWallpaperFocalPointInfo::~NewTabPageAdWallpaperFocalPointInfo() =
     default;
+
+bool NewTabPageAdWallpaperFocalPointInfo::operator==(
+    const NewTabPageAdWallpaperFocalPointInfo& rhs) const {
+  auto tie = [](const NewTabPageAdWallpaperFocalPointInfo& info) {
+    return std::tie(info.x, info.y);
+  };
+
+  return tie(*this) == tie(rhs);
+}
 
 }  // namespace ads

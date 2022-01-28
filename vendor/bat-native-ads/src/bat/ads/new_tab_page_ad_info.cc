@@ -5,6 +5,8 @@
 
 #include "bat/ads/new_tab_page_ad_info.h"
 
+#include <tuple>
+
 #include "bat/ads/internal/json_helper.h"
 #include "bat/ads/internal/logging.h"
 
@@ -15,6 +17,18 @@ NewTabPageAdInfo::NewTabPageAdInfo() = default;
 NewTabPageAdInfo::NewTabPageAdInfo(const NewTabPageAdInfo& info) = default;
 
 NewTabPageAdInfo::~NewTabPageAdInfo() = default;
+
+bool NewTabPageAdInfo::operator==(const NewTabPageAdInfo& rhs) const {
+  if (!AdInfo::operator==(rhs)) {
+    return false;
+  }
+
+  auto tie = [](const NewTabPageAdInfo& ad) {
+    return std::tie(ad.company_name, ad.image_url, ad.alt, ad.wallpapers);
+  };
+
+  return tie(*this) == tie(rhs);
+}
 
 bool NewTabPageAdInfo::IsValid() const {
   if (!AdInfo::IsValid()) {
@@ -84,8 +98,37 @@ bool NewTabPageAdInfo::FromJson(const std::string& json) {
     alt = document["alt"].GetString();
   }
 
-  // TODO(https://github.com/brave/brave-browser/issues/14015): Read wallpapers
-  // JSON
+  wallpapers.clear();
+  if (document.HasMember("wallpapers")) {
+    for (const auto& wallpaper : document["wallpapers"].GetArray()) {
+      NewTabPageAdWallpaperInfo wallpaper_info;
+      auto iterator = wallpaper.FindMember("image_url");
+      if (iterator == wallpaper.MemberEnd() || !iterator->value.IsString()) {
+        continue;
+      }
+      wallpaper_info.image_url = iterator->value.GetString();
+
+      iterator = wallpaper.FindMember("focal_point");
+      if (iterator == wallpaper.MemberEnd() || !iterator->value.IsObject()) {
+        continue;
+      }
+
+      auto focal_point = iterator->value.GetObject();
+      iterator = focal_point.FindMember("x");
+      if (iterator == focal_point.MemberEnd() || !iterator->value.IsInt()) {
+        continue;
+      }
+      wallpaper_info.focal_point.x = iterator->value.GetInt();
+
+      iterator = focal_point.FindMember("y");
+      if (iterator == focal_point.MemberEnd() || !iterator->value.IsInt()) {
+        continue;
+      }
+      wallpaper_info.focal_point.y = iterator->value.GetInt();
+
+      wallpapers.push_back(wallpaper_info);
+    }
+  }
 
   if (document.HasMember("target_url")) {
     target_url = document["target_url"].GetString();
@@ -128,8 +171,24 @@ void SaveToJson(JsonWriter* writer, const NewTabPageAdInfo& info) {
   writer->String("alt");
   writer->String(info.alt.c_str());
 
-  // TODO(https://github.com/brave/brave-browser/issues/14015): Write wallpapers
-  // JSON
+  writer->String("wallpapers");
+  writer->StartArray();
+  for (const NewTabPageAdWallpaperInfo& wallpaper_info : info.wallpapers) {
+    writer->StartObject();
+    writer->String("image_url");
+    writer->String(wallpaper_info.image_url.c_str());
+    {
+      writer->String("focal_point");
+      writer->StartObject();
+      writer->String("x");
+      writer->Int(wallpaper_info.focal_point.x);
+      writer->String("y");
+      writer->Int(wallpaper_info.focal_point.y);
+      writer->EndObject();
+    }
+    writer->EndObject();
+  }
+  writer->EndArray();
 
   writer->String("target_url");
   writer->String(info.target_url.c_str());

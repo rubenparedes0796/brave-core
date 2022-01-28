@@ -16,6 +16,8 @@ struct ADS_EXPORT NewTabPageAdWallpaperFocalPointInfo final {
       const NewTabPageAdWallpaperFocalPointInfo& info);
   ~NewTabPageAdWallpaperFocalPointInfo();
 
+  bool operator==(const NewTabPageAdWallpaperFocalPointInfo& rhs) const;
+
   int x;
   int y;
 };
