@@ -16,6 +16,7 @@
 #include "bat/ads/category_content_info.h"
 #include "bat/ads/confirmation_type.h"
 #include "bat/ads/inline_content_ad_info.h"
+#include "bat/ads/new_tab_page_ad_info.h"
 #include "brave/components/services/bat_ads/bat_ads_client_mojo_bridge.h"
 
 using std::placeholders::_1;
@@ -138,6 +139,15 @@ void BatAdsImpl::OnAdNotificationEvent(
   ads_->OnAdNotificationEvent(uuid, event_type);
 }
 
+void BatAdsImpl::GetNewTabPageAd(GetNewTabPageAdCallback callback) {
+  auto* holder = new CallbackHolder<GetNewTabPageAdCallback>(
+      AsWeakPtr(), std::move(callback));
+
+  auto get_new_tab_page_ad_callback =
+      std::bind(BatAdsImpl::OnGetNewTabPageAd, holder, _1, _2);
+  ads_->GetNewTabPageAd(get_new_tab_page_ad_callback);
+}
+
 void BatAdsImpl::OnNewTabPageAdEvent(
     const std::string& uuid,
     const std::string& creative_instance_id,
@@ -170,8 +180,16 @@ void BatAdsImpl::OnInlineContentAdEvent(
 }
 
 void BatAdsImpl::PurgeOrphanedAdEventsForType(
-    const ads::mojom::AdType ad_type) {
-  ads_->PurgeOrphanedAdEventsForType(ad_type);
+    const ads::mojom::AdType ad_type,
+    PurgeOrphanedAdEventsForTypeCallback callback) {
+  auto* holder = new CallbackHolder<PurgeOrphanedAdEventsForTypeCallback>(
+      AsWeakPtr(), std::move(callback));
+
+  auto purge_ad_events_for_type_callback =
+      std::bind(BatAdsImpl::OnPurgeOrphanedAdEventsForType, holder);
+
+  ads_->PurgeOrphanedAdEventsForType(ad_type,
+                                     purge_ad_events_for_type_callback);
 }
 
 void BatAdsImpl::RemoveAllHistory(
@@ -294,6 +312,19 @@ void BatAdsImpl::OnShutdown(CallbackHolder<ShutdownCallback>* holder,
   delete holder;
 }
 
+// static
+void BatAdsImpl::OnGetNewTabPageAd(
+    CallbackHolder<GetNewTabPageAdCallback>* holder,
+    const bool success,
+    const ads::NewTabPageAdInfo& ad) {
+  DCHECK(holder);
+  if (holder->is_valid()) {
+    std::move(holder->get()).Run(success, ad.ToJson());
+  }
+
+  delete holder;
+}
+
 void BatAdsImpl::OnGetInlineContentAd(
     CallbackHolder<GetInlineContentAdCallback>* holder,
     const bool success,
@@ -301,6 +332,15 @@ void BatAdsImpl::OnGetInlineContentAd(
     const ads::InlineContentAdInfo& ad) {
   if (holder->is_valid()) {
     std::move(holder->get()).Run(success, dimensions, ad.ToJson());
+  }
+
+  delete holder;
+}
+
+void BatAdsImpl::OnPurgeOrphanedAdEventsForType(
+    CallbackHolder<PurgeOrphanedAdEventsForTypeCallback>* holder) {
+  if (holder->is_valid()) {
+    std::move(holder->get()).Run();
   }
 
   delete holder;

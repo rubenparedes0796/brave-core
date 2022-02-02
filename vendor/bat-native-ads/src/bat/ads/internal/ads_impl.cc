@@ -396,14 +396,18 @@ void AdsImpl::OnInlineContentAdEvent(
   inline_content_ad_->FireEvent(uuid, creative_instance_id, event_type);
 }
 
-void AdsImpl::PurgeOrphanedAdEventsForType(const mojom::AdType ad_type) {
-  PurgeOrphanedAdEvents(ad_type, [ad_type](const bool success) {
+void AdsImpl::PurgeOrphanedAdEventsForType(
+    const mojom::AdType ad_type,
+    PurgeOrphanedAdEventsForTypeCallback callback) {
+  PurgeOrphanedAdEvents(ad_type, [ad_type, callback](const bool success) {
     if (!success) {
       BLOG(0, "Failed to purge orphaned ad events for " << ad_type);
       return;
     }
 
     BLOG(1, "Successfully purged orphaned ad events for " << ad_type);
+
+    callback();
   });
 }
 

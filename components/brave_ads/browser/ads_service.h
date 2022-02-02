@@ -13,15 +13,12 @@
 #include "base/observer_list.h"
 #include "brave/components/brave_adaptive_captcha/buildflags/buildflags.h"
 #include "brave/components/brave_ads/browser/ads_service_observer.h"
+#include "brave/vendor/bat-native-ads/include/bat/ads/new_tab_page_ad_info.h"
 #include "brave/vendor/bat-native-ads/include/bat/ads/public/interfaces/ads.mojom.h"
 #include "build/build_config.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/sessions/core/session_id.h"
 #include "url/gurl.h"
-
-namespace ads {
-struct AdsHistoryInfo;
-}
 
 namespace base {
 class DictionaryValue;
@@ -141,8 +138,10 @@ class AdsService : public KeyedService {
       const std::string& creative_instance_id,
       const ads::mojom::InlineContentAdEventType event_type) = 0;
 
-  virtual void PurgeOrphanedAdEventsForType(
-      const ads::mojom::AdType ad_type) = 0;
+  virtual absl::optional<ads::NewTabPageAdInfo> GetPrefetchedNewTabPageAd() = 0;
+
+  virtual void PurgeOrphanedAdEventsForType(const ads::mojom::AdType ad_type,
+                                            base::OnceClosure callback) = 0;
 
   virtual void GetAdsHistory(const double from_timestamp,
                              const double to_timestamp,

@@ -32,6 +32,8 @@ using GetAccountStatementCallback =
 using GetAdDiagnosticsCallback =
     std::function<void(const bool, const std::string&)>;
 
+using PurgeOrphanedAdEventsForTypeCallback = std::function<void()>;
+
 }  // namespace ads
 
 #endif  // BRAVE_VENDOR_BAT_NATIVE_ADS_INCLUDE_BAT_ADS_ADS_ALIASES_H_

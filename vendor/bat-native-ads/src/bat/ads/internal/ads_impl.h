@@ -191,7 +191,9 @@ class AdsImpl final : public Ads,
       const std::string& creative_instance_id,
       const mojom::InlineContentAdEventType event_type) override;
 
-  void PurgeOrphanedAdEventsForType(const mojom::AdType ad_type) override;
+  void PurgeOrphanedAdEventsForType(
+      const mojom::AdType ad_type,
+      PurgeOrphanedAdEventsForTypeCallback callback) override;
 
   void RemoveAllHistory(RemoveAllHistoryCallback callback) override;
 

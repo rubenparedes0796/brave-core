@@ -86,6 +86,8 @@ class BatAdsImpl :
       const std::string& uuid,
       const ads::mojom::AdNotificationEventType event_type) override;
 
+  void GetNewTabPageAd(GetNewTabPageAdCallback callback) override;
+
   void OnNewTabPageAdEvent(
       const std::string& uuid,
       const std::string& creative_instance_id,
@@ -104,7 +106,9 @@ class BatAdsImpl :
       const std::string& creative_instance_id,
       const ads::mojom::InlineContentAdEventType event_type) override;
 
-  void PurgeOrphanedAdEventsForType(const ads::mojom::AdType ad_type) override;
+  void PurgeOrphanedAdEventsForType(
+      const ads::mojom::AdType ad_type,
+      PurgeOrphanedAdEventsForTypeCallback callback) override;
 
   void RemoveAllHistory(
       RemoveAllHistoryCallback callback) override;
@@ -170,11 +174,19 @@ class BatAdsImpl :
     static void OnShutdown(CallbackHolder<ShutdownCallback>* holder,
                            const bool success);
 
+    static void OnGetNewTabPageAd(
+        CallbackHolder<GetNewTabPageAdCallback>* holder,
+        const bool success,
+        const ads::NewTabPageAdInfo& ad);
+
     static void OnGetInlineContentAd(
         CallbackHolder<GetInlineContentAdCallback>* holder,
         const bool success,
         const std::string& dimensions,
         const ads::InlineContentAdInfo& ad);
+
+    static void OnPurgeOrphanedAdEventsForType(
+        CallbackHolder<PurgeOrphanedAdEventsForTypeCallback>* holder);
 
     static void OnRemoveAllHistory(
         CallbackHolder<RemoveAllHistoryCallback>* holder,

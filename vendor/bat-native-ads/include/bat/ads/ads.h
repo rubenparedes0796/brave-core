@@ -176,7 +176,9 @@ class ADS_EXPORT Ads {
       const mojom::InlineContentAdEventType event_type) = 0;
 
   // Purge orphaned ad events for the specified |ad_type|
-  virtual void PurgeOrphanedAdEventsForType(const mojom::AdType ad_type) = 0;
+  virtual void PurgeOrphanedAdEventsForType(
+      const mojom::AdType ad_type,
+      PurgeOrphanedAdEventsForTypeCallback callback) = 0;
 
   // Should be called to remove all cached history. The callback takes one
   // argument - |bool| should be set to |true| if successful otherwise should be

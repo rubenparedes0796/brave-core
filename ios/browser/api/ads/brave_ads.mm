@@ -655,7 +655,8 @@ BATClassAdsBridge(BOOL, isDebug, setDebug, g_is_debug)
   if (![self isAdsServiceRunning]) {
     return;
   }
-  ads->PurgeOrphanedAdEventsForType(static_cast<ads::mojom::AdType>(adType));
+  ads->PurgeOrphanedAdEventsForType(static_cast<ads::mojom::AdType>(adType), ^{
+                                    });
 }
 
 - (void)detailsForCurrentCycle:(void (^)(NSInteger adsReceived,

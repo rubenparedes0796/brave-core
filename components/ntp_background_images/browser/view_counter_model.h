@@ -44,6 +44,7 @@ class ViewCounterModel {
   bool ShouldShowBrandedWallpaper() const;
   void RegisterPageView();
   void Reset();
+  void IncreaseBackgroundWallpaperImageIndex();
 
  private:
   static const int kInitialCountToBrandedWallpaper = 1;
