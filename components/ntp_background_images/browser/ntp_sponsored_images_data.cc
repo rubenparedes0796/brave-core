@@ -111,10 +111,15 @@ Logo::Logo(const Logo&) = default;
 Logo::~Logo() = default;
 
 SponsoredBackground::SponsoredBackground() = default;
-SponsoredBackground::SponsoredBackground(const base::FilePath& image_file_path,
-                                         const gfx::Point& point,
-                                         const Logo& test_logo)
-    : image_file(image_file_path), focal_point(point), logo(test_logo) {}
+SponsoredBackground::SponsoredBackground(
+    const base::FilePath& image_file_path,
+    const gfx::Point& point,
+    const Logo& test_logo,
+    const std::string& creative_instance_id)
+    : image_file(image_file_path),
+      focal_point(point),
+      creative_instance_id(creative_instance_id),
+      logo(test_logo) {}
 SponsoredBackground::SponsoredBackground(const SponsoredBackground&) = default;
 SponsoredBackground::~SponsoredBackground() = default;
 

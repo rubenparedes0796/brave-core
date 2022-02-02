@@ -68,7 +68,8 @@ struct SponsoredBackground {
   // For unit test.
   SponsoredBackground(const base::FilePath& image_file_path,
                       const gfx::Point& point,
-                      const Logo& test_logo);
+                      const Logo& test_logo,
+                      const std::string& creative_instance_id);
   SponsoredBackground(const SponsoredBackground&);
 
   ~SponsoredBackground();

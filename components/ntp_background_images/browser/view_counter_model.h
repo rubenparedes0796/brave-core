@@ -50,9 +50,12 @@ class ViewCounterModel {
   static const int kInitialCountToBrandedWallpaper = 1;
   static const int kRegularCountToBrandedWallpaper = 3;
 
+  friend class NTPBackgroundImagesViewCounterTest;
   FRIEND_TEST_ALL_PREFIXES(ViewCounterModelTest, NTPSponsoredImagesTest);
   FRIEND_TEST_ALL_PREFIXES(ViewCounterModelTest, NTPBackgroundImagesTest);
   FRIEND_TEST_ALL_PREFIXES(ViewCounterModelTest, NTPBackgroundImagesOnlyTest);
+  FRIEND_TEST_ALL_PREFIXES(ViewCounterModelTest,
+                           NTPFailedToLoadSponsoredImagesTest);
   FRIEND_TEST_ALL_PREFIXES(NTPBackgroundImagesViewCounterTest, ModelTest);
   FRIEND_TEST_ALL_PREFIXES(NTPBackgroundImagesViewCounterTest,
                            PrefsWithModelTest);
