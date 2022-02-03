@@ -56,7 +56,7 @@ async function RunCommand () {
   }
 
   if (program.init || !fs.existsSync(config.depotToolsDir)) {
-    installDepotTools()
+    maybeInstallDepotTools()
   }
 
   if (program.init) {
