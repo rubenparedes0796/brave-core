@@ -195,17 +195,17 @@ public class BraveVpnPreferences extends BravePreferenceFragment implements Brav
     @Override
     public void onResume() {
         super.onResume();
-        if (BraveVpnUtils.getAlwaysOnVpn(getActivity())
-                == BraveVpnUtils.AlwaysOnVpnType.BRAVE_VPN) {
-            mVpnSwitch.setSummary(
-                    getActivity().getResources().getString(R.string.always_on_brave_text));
-            disableControls();
-        }
-        if (BraveVpnUtils.getAlwaysOnVpn(getActivity())
-                == BraveVpnUtils.AlwaysOnVpnType.OTHER_VPN) {
-            BraveVpnUtils.showVpnAlwaysOnErrorDialog(getActivity());
-            disableControls();
-        }
+        // if (BraveVpnUtils.getAlwaysOnVpn(getActivity())
+        //         == BraveVpnUtils.AlwaysOnVpnType.BRAVE_VPN) {
+        //     mVpnSwitch.setSummary(
+        //             getActivity().getResources().getString(R.string.always_on_brave_text));
+        //     disableControls();
+        // }
+        // if (BraveVpnUtils.getAlwaysOnVpn(getActivity())
+        //         == BraveVpnUtils.AlwaysOnVpnType.OTHER_VPN) {
+        //     BraveVpnUtils.showVpnAlwaysOnErrorDialog(getActivity());
+        //     disableControls();
+        // }
         if (BraveVpnUtils.mIsServerLocationChanged) {
             BraveVpnUtils.mIsServerLocationChanged = false;
             BraveVpnUtils.showProgressDialog(
