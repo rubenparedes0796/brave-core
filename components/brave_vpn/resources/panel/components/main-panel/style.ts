@@ -70,10 +70,6 @@ export const RegionSelectorButton = styled.button`
     height: 18px;
   }
 
-  svg>path {
-    fill: var(--svg-color);
-  }
-
   &:hover {
     --region-label-color: ${(p) => p.theme.color.interactive05};
     --svg-color: ${(p) => p.theme.color.interactive05};
@@ -82,6 +78,12 @@ export const RegionSelectorButton = styled.button`
   &:focus {
     --border-color: #A0A5EB;
   }
+`
+
+export const RightArrowIcon = styled.span`
+  fill: var(--svg-color);
+  width: 18px;
+  height: 18px;
 `
 
 export const RegionLabel = styled.span`

@@ -7,6 +7,7 @@ import { Region } from '../../api/panel_browser_api'
 import { useSelector, useDispatch } from '../../state/hooks'
 import * as Actions from '../../state/actions'
 import { getLocale } from '../../../../../common/locale'
+const Flag = React.lazy(() => import('../flag'))
 
 function SelectRegion () {
   // TODO(nullhook): Scroll to the selected radio input when this component loads
@@ -56,11 +57,20 @@ function SelectRegion () {
                 key={i}
                 data-value={entry.name}
               >
-                <S.RegionLabel
+                <S.RegionLabelButton
+                  type="button"
+                  aria-describedby="country-name"
                   onClick={handleItemClick.bind(this, entry)}
                 >
-                  {entry.namePretty}
-                </S.RegionLabel>
+                  <React.Suspense fallback={null}>
+                    <S.RegionLabelIcon>
+                      <Flag countryCode={entry.countryIsoCode} />
+                    </S.RegionLabelIcon>
+                  </React.Suspense>
+                  <S.RegionLabel id="country-name">
+                    {entry.namePretty}
+                  </S.RegionLabel>
+                </S.RegionLabelButton>
               </div>
             ))}
           </Radio>

@@ -293,6 +293,7 @@
     "brave-ui": "github:brave/brave-ui#5b2069a51eea6ec4577b433bb9e48b5ab2aabbe9",
     "chalk": "4.1.0",
     "commander": "2.20.3",
+    "country-flag-icons": "^1.4.20",
     "css-loader": "3.6.0",
     "csstype": "2.6.15",
     "emptykit.css": "1.0.1",
