@@ -56,6 +56,7 @@ export const RegionLabelButton = styled.button`
   border: 0;
   padding: 0;
   margin: 0;
+  scroll-margin: 5px;
 `
 
 export const RegionLabel = styled.span`

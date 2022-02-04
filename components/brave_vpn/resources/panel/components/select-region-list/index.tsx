@@ -16,6 +16,7 @@ function SelectRegion () {
   const currentRegion = useSelector(state => state.currentRegion)
   const regions = useSelector(state => state.regions)
   const [selectedRegion, setSelectedRegion] = React.useState(currentRegion)
+  const ref = React.useRef() as React.MutableRefObject<HTMLButtonElement>
 
   const handleGoBackClick = () => {
     dispatch(Actions.toggleRegionSelector(false))
@@ -34,6 +35,12 @@ function SelectRegion () {
   if (!selectedRegion) {
     console.error('Selected region is not defined')
   }
+
+  React.useEffect(() => {
+    if (ref.current && currentRegion) {
+      ref.current.scrollIntoView()
+    }
+  }, [])
 
   return (
     <S.Box>
@@ -61,6 +68,7 @@ function SelectRegion () {
                   type="button"
                   aria-describedby="country-name"
                   onClick={handleItemClick.bind(this, entry)}
+                  ref={(selectedRegion?.name === entry.name) ? ref : null}
                 >
                   <React.Suspense fallback={null}>
                     <S.RegionLabelIcon>
