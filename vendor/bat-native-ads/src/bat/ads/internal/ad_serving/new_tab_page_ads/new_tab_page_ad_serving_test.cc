@@ -5,13 +5,17 @@
 
 #include "bat/ads/internal/ad_serving/new_tab_page_ads/new_tab_page_ad_serving.h"
 
+#include "bat/ads/internal/ad_events/ad_event_unittest_util.h"
+#include "bat/ads/internal/ad_serving/ad_serving_features.h"
 #include "bat/ads/internal/ad_serving/ad_targeting/geographic/subdivision/subdivision_targeting.h"
 #include "bat/ads/internal/ads/new_tab_page_ads/new_tab_page_ad_builder.h"
+#include "bat/ads/internal/ads/new_tab_page_ads/new_tab_page_ad_permission_rules_unittest_util.h"
 #include "bat/ads/internal/bundle/creative_new_tab_page_ad_unittest_util.h"
 #include "bat/ads/internal/database/tables/creative_new_tab_page_ads_database_table.h"
 #include "bat/ads/internal/frequency_capping/permission_rules/user_activity_permission_rule_unittest_util.h"
 #include "bat/ads/internal/resources/frequency_capping/anti_targeting/anti_targeting_resource.h"
 #include "bat/ads/internal/unittest_base.h"
+#include "bat/ads/internal/unittest_time_util.h"
 #include "bat/ads/internal/unittest_util.h"
 #include "bat/ads/new_tab_page_ad_info.h"
 #include "net/http/http_status_code.h"
@@ -97,10 +101,10 @@ class BatAdsNewTabPageAdServingTest : public UnitTestBase {
 
 TEST_F(BatAdsNewTabPageAdServingTest, ServeAd) {
   // Arrange
-  ForceUserActivityFrequencyCapPermission();
+  new_tab_page_ads::frequency_capping::ForcePermissionRules();
 
   CreativeNewTabPageAdList creative_ads;
-  const CreativeNewTabPageAdInfo& creative_ad = BuildCreativeNewTabPageAd();
+  CreativeNewTabPageAdInfo creative_ad = BuildCreativeNewTabPageAd();
   creative_ads.push_back(creative_ad);
   Save(creative_ads);
 
@@ -119,12 +123,160 @@ TEST_F(BatAdsNewTabPageAdServingTest, ServeAd) {
 }
 
 TEST_F(BatAdsNewTabPageAdServingTest,
+       DoNotServeAdIfExceededPerDayCapFromCatalog) {
+  // Arrange
+  new_tab_page_ads::frequency_capping::ForcePermissionRules();
+
+  CreativeNewTabPageAdList creative_ads;
+  CreativeNewTabPageAdInfo creative_ad = BuildCreativeNewTabPageAd();
+  creative_ads.push_back(creative_ad);
+  Save(creative_ads);
+
+  AdEventInfo ad_event = BuildAdEvent(creative_ad, AdType::kNewTabPageAd,
+                                      ConfirmationType::kServed, Now());
+  for (int i = 0; i < creative_ad.per_day; ++i) {
+    FireAdEvent(ad_event);
+  }
+
+  // Act
+  ad_serving_->MaybeServeAd([](const bool success, const NewTabPageAdInfo& ad) {
+    EXPECT_FALSE(success);
+  });
+
+  // Assert
+}
+
+TEST_F(BatAdsNewTabPageAdServingTest,
        DoNotServeAdIfNotAllowedDueToPermissionRules) {
   // Arrange
   CreativeNewTabPageAdList creative_ads;
   const CreativeNewTabPageAdInfo& creative_ad = BuildCreativeNewTabPageAd();
   creative_ads.push_back(creative_ad);
   Save(creative_ads);
+
+  // Act
+  ad_serving_->MaybeServeAd([](const bool success, const NewTabPageAdInfo& ad) {
+    EXPECT_FALSE(success);
+  });
+
+  // Assert
+}
+
+TEST_F(BatAdsNewTabPageAdServingTest, ServeAdIfNotExceededAdsPerHourCap) {
+  // Arrange
+  new_tab_page_ads::frequency_capping::ForcePermissionRules();
+
+  CreativeNewTabPageAdList creative_ads;
+  CreativeNewTabPageAdInfo creative_ad1 = BuildCreativeNewTabPageAd();
+  CreativeNewTabPageAdInfo creative_ad2 = BuildCreativeNewTabPageAd();
+  creative_ads.push_back(creative_ad1);
+  creative_ads.push_back(creative_ad2);
+  Save(creative_ads);
+
+  AdEventInfo ad_event1 = BuildAdEvent(creative_ad1, AdType::kNewTabPageAd,
+                                       ConfirmationType::kServed, Now());
+
+  const int ads_per_hour = features::GetMaximumNewTabPageAdsPerHour();
+  for (int i = 0; i < ads_per_hour - 1; ++i) {
+    FireAdEvent(ad_event1);
+  }
+
+  // Act
+  ad_serving_->MaybeServeAd(
+      [&creative_ad2](const bool success, const NewTabPageAdInfo& ad) {
+        ASSERT_TRUE(success);
+
+        NewTabPageAdInfo expected_ad = BuildNewTabPageAd(creative_ad2);
+        expected_ad.uuid = ad.uuid;
+
+        EXPECT_EQ(expected_ad, ad);
+      });
+
+  // Assert
+}
+
+TEST_F(BatAdsNewTabPageAdServingTest, DoNotServeAdIfExceededAdsPerHourCap) {
+  // Arrange
+  new_tab_page_ads::frequency_capping::ForcePermissionRules();
+
+  CreativeNewTabPageAdList creative_ads;
+  CreativeNewTabPageAdInfo creative_ad1 = BuildCreativeNewTabPageAd();
+  CreativeNewTabPageAdInfo creative_ad2 = BuildCreativeNewTabPageAd();
+  creative_ads.push_back(creative_ad1);
+  creative_ads.push_back(creative_ad2);
+  Save(creative_ads);
+
+  AdEventInfo ad_event1 = BuildAdEvent(creative_ad1, AdType::kNewTabPageAd,
+                                       ConfirmationType::kServed, Now());
+
+  const int ads_per_hour = features::GetMaximumNewTabPageAdsPerHour();
+  for (int i = 0; i < ads_per_hour; ++i) {
+    FireAdEvent(ad_event1);
+  }
+
+  // Act
+  ad_serving_->MaybeServeAd([](const bool success, const NewTabPageAdInfo& ad) {
+    EXPECT_FALSE(success);
+  });
+
+  // Assert
+}
+
+TEST_F(BatAdsNewTabPageAdServingTest, ServeAdIfNotExceededAdsPerDayCap) {
+  // Arrange
+  new_tab_page_ads::frequency_capping::ForcePermissionRules();
+
+  CreativeNewTabPageAdList creative_ads;
+  CreativeNewTabPageAdInfo creative_ad1 = BuildCreativeNewTabPageAd();
+  CreativeNewTabPageAdInfo creative_ad2 = BuildCreativeNewTabPageAd();
+  creative_ads.push_back(creative_ad1);
+  creative_ads.push_back(creative_ad2);
+  Save(creative_ads);
+
+  AdEventInfo ad_event1 = BuildAdEvent(creative_ad1, AdType::kNewTabPageAd,
+                                       ConfirmationType::kServed, Now());
+
+  const int ads_per_day = features::GetMaximumNewTabPageAdsPerDay();
+  for (int i = 0; i < ads_per_day - 1; ++i) {
+    FireAdEvent(ad_event1);
+  }
+
+  AdvanceClock(base::Hours(1));
+
+  // Act
+  ad_serving_->MaybeServeAd(
+      [&creative_ad2](const bool success, const NewTabPageAdInfo& ad) {
+        ASSERT_TRUE(success);
+
+        NewTabPageAdInfo expected_ad = BuildNewTabPageAd(creative_ad2);
+        expected_ad.uuid = ad.uuid;
+
+        EXPECT_EQ(expected_ad, ad);
+      });
+
+  // Assert
+}
+
+TEST_F(BatAdsNewTabPageAdServingTest, DoNotServeAdIfExceededAdsPerDayCap) {
+  // Arrange
+  new_tab_page_ads::frequency_capping::ForcePermissionRules();
+
+  CreativeNewTabPageAdList creative_ads;
+  CreativeNewTabPageAdInfo creative_ad1 = BuildCreativeNewTabPageAd();
+  CreativeNewTabPageAdInfo creative_ad2 = BuildCreativeNewTabPageAd();
+  creative_ads.push_back(creative_ad1);
+  creative_ads.push_back(creative_ad2);
+  Save(creative_ads);
+
+  AdEventInfo ad_event1 = BuildAdEvent(creative_ad1, AdType::kNewTabPageAd,
+                                       ConfirmationType::kServed, Now());
+
+  const int ads_per_day = features::GetMaximumNewTabPageAdsPerDay();
+  for (int i = 0; i < ads_per_day; ++i) {
+    FireAdEvent(ad_event1);
+  }
+
+  AdvanceClock(base::Hours(1));
 
   // Act
   ad_serving_->MaybeServeAd([](const bool success, const NewTabPageAdInfo& ad) {

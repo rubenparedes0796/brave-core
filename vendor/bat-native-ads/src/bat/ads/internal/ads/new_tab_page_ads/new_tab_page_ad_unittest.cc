@@ -14,12 +14,10 @@
 #include "bat/ads/internal/ad_serving/ad_serving_features.h"
 #include "bat/ads/internal/ads/new_tab_page_ads/new_tab_page_ad_builder.h"
 #include "bat/ads/internal/ads/new_tab_page_ads/new_tab_page_ad_observer.h"
-#include "bat/ads/internal/ads/new_tab_page_ads/new_tab_page_ad_permission_rules_unittest_util.h"
 #include "bat/ads/internal/bundle/creative_new_tab_page_ad_info.h"
 #include "bat/ads/internal/bundle/creative_new_tab_page_ad_unittest_util.h"
 #include "bat/ads/internal/database/tables/ad_events_database_table.h"
 #include "bat/ads/internal/unittest_base.h"
-#include "bat/ads/internal/unittest_time_util.h"
 #include "bat/ads/internal/unittest_util.h"
 #include "bat/ads/new_tab_page_ad_info.h"
 #include "bat/ads/public/interfaces/ads.mojom.h"
@@ -103,9 +101,6 @@ class BatAdsNewTabPageAdTest : public NewTabPageAdObserver,
 };
 
 TEST_F(BatAdsNewTabPageAdTest, FireViewedEvent) {
-  // Arrange
-  new_tab_page_ads::frequency_capping::ForcePermissionRules();
-
   const CreativeNewTabPageAdInfo& creative_ad = BuildAndSaveCreativeAd();
 
   // Act
@@ -113,7 +108,7 @@ TEST_F(BatAdsNewTabPageAdTest, FireViewedEvent) {
                               mojom::NewTabPageAdEventType::kViewed);
 
   // Assert
-  EXPECT_TRUE(did_serve_ad_);
+  EXPECT_FALSE(did_serve_ad_);
   EXPECT_TRUE(did_view_ad_);
   EXPECT_FALSE(did_click_ad_);
   EXPECT_FALSE(did_fail_to_fire_event_);
@@ -125,8 +120,6 @@ TEST_F(BatAdsNewTabPageAdTest, FireViewedEvent) {
 
 TEST_F(BatAdsNewTabPageAdTest, FireClickedEvent) {
   // Arrange
-  new_tab_page_ads::frequency_capping::ForcePermissionRules();
-
   const CreativeNewTabPageAdInfo& creative_ad = BuildAndSaveCreativeAd();
 
   // Act
@@ -146,8 +139,6 @@ TEST_F(BatAdsNewTabPageAdTest, FireClickedEvent) {
 
 TEST_F(BatAdsNewTabPageAdTest, DoNotFireViewedEventIfAlreadyFired) {
   // Arrange
-  new_tab_page_ads::frequency_capping::ForcePermissionRules();
-
   const CreativeNewTabPageAdInfo& creative_ad = BuildAndSaveCreativeAd();
 
   new_tab_page_ad_->FireEvent(kUuid, creative_ad.creative_instance_id,
@@ -193,26 +184,8 @@ TEST_F(BatAdsNewTabPageAdTest, DoNotFireEventWithInvalidCreativeInstanceId) {
   ExpectAdEventCountEquals(ConfirmationType::kViewed, 0);
 }
 
-TEST_F(BatAdsNewTabPageAdTest, DoNotFireEventWhenNotPermitted) {
-  // Arrange
-  const CreativeNewTabPageAdInfo& creative_ad = BuildAndSaveCreativeAd();
-
-  // Act
-  new_tab_page_ad_->FireEvent(kUuid, creative_ad.creative_instance_id,
-                              mojom::NewTabPageAdEventType::kViewed);
-
-  // Assert
-  EXPECT_FALSE(did_serve_ad_);
-  EXPECT_FALSE(did_view_ad_);
-  EXPECT_FALSE(did_click_ad_);
-  EXPECT_TRUE(did_fail_to_fire_event_);
-
-  ExpectAdEventCountEquals(ConfirmationType::kViewed, 0);
-}
-
 TEST_F(BatAdsNewTabPageAdTest, DoNotFireEventIfCreativeInstanceIdWasNotFound) {
   // Arrange
-  new_tab_page_ads::frequency_capping::ForcePermissionRules();
 
   // Act
   new_tab_page_ad_->FireEvent(kUuid, kCreativeInstanceId,
@@ -225,98 +198,6 @@ TEST_F(BatAdsNewTabPageAdTest, DoNotFireEventIfCreativeInstanceIdWasNotFound) {
   EXPECT_TRUE(did_fail_to_fire_event_);
 
   ExpectAdEventCountEquals(ConfirmationType::kViewed, 0);
-}
-
-TEST_F(BatAdsNewTabPageAdTest, FireEventIfNotExceededAdsPerHourCap) {
-  // Arrange
-  new_tab_page_ads::frequency_capping::ForcePermissionRules();
-
-  const CreativeNewTabPageAdInfo& creative_ad = BuildAndSaveCreativeAd();
-  const AdEventInfo& ad_event = BuildAdEvent(creative_ad, AdType::kNewTabPageAd,
-                                             ConfirmationType::kViewed, Now());
-
-  const int ads_per_hour = features::GetMaximumNewTabPageAdsPerHour();
-
-  FireAdEvents(ad_event, ads_per_hour - 1);
-
-  const std::string& uuid = base::GenerateGUID();
-
-  // Act
-  new_tab_page_ad_->FireEvent(uuid, creative_ad.creative_instance_id,
-                              mojom::NewTabPageAdEventType::kViewed);
-
-  // Assert
-  ExpectAdEventCountEquals(ConfirmationType::kViewed, ads_per_hour);
-}
-
-TEST_F(BatAdsNewTabPageAdTest, DoNotFireEventIfExceededAdsPerHourCap) {
-  // Arrange
-  new_tab_page_ads::frequency_capping::ForcePermissionRules();
-
-  const CreativeNewTabPageAdInfo& creative_ad = BuildAndSaveCreativeAd();
-  const AdEventInfo& ad_event = BuildAdEvent(creative_ad, AdType::kNewTabPageAd,
-                                             ConfirmationType::kViewed, Now());
-
-  const int ads_per_hour = features::GetMaximumNewTabPageAdsPerHour();
-
-  FireAdEvents(ad_event, ads_per_hour);
-
-  const std::string& uuid = base::GenerateGUID();
-
-  // Act
-  new_tab_page_ad_->FireEvent(uuid, creative_ad.creative_instance_id,
-                              mojom::NewTabPageAdEventType::kViewed);
-
-  // Assert
-  ExpectAdEventCountEquals(ConfirmationType::kViewed, ads_per_hour);
-}
-
-TEST_F(BatAdsNewTabPageAdTest, FireEventIfNotExceededAdsPerDayCap) {
-  // Arrange
-  new_tab_page_ads::frequency_capping::ForcePermissionRules();
-
-  const CreativeNewTabPageAdInfo& creative_ad = BuildAndSaveCreativeAd();
-  const AdEventInfo& ad_event = BuildAdEvent(creative_ad, AdType::kNewTabPageAd,
-                                             ConfirmationType::kViewed, Now());
-
-  const int ads_per_day = features::GetMaximumNewTabPageAdsPerDay();
-
-  FireAdEvents(ad_event, ads_per_day - 1);
-
-  AdvanceClock(base::Hours(1));
-
-  const std::string& uuid = base::GenerateGUID();
-
-  // Act
-  new_tab_page_ad_->FireEvent(uuid, creative_ad.creative_instance_id,
-                              mojom::NewTabPageAdEventType::kViewed);
-
-  // Assert
-  ExpectAdEventCountEquals(ConfirmationType::kViewed, ads_per_day);
-}
-
-TEST_F(BatAdsNewTabPageAdTest, DoNotFireEventIfExceededAdsPerDayCap) {
-  // Arrange
-  new_tab_page_ads::frequency_capping::ForcePermissionRules();
-
-  const CreativeNewTabPageAdInfo& creative_ad = BuildAndSaveCreativeAd();
-  const AdEventInfo& ad_event = BuildAdEvent(creative_ad, AdType::kNewTabPageAd,
-                                             ConfirmationType::kViewed, Now());
-
-  const int ads_per_day = features::GetMaximumNewTabPageAdsPerDay();
-
-  FireAdEvents(ad_event, ads_per_day);
-
-  AdvanceClock(base::Hours(1));
-
-  const std::string& uuid = base::GenerateGUID();
-
-  // Act
-  new_tab_page_ad_->FireEvent(uuid, creative_ad.creative_instance_id,
-                              mojom::NewTabPageAdEventType::kViewed);
-
-  // Assert
-  ExpectAdEventCountEquals(ConfirmationType::kViewed, ads_per_day);
 }
 
 }  // namespace ads
