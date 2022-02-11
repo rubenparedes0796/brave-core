@@ -8,7 +8,7 @@
 #include "base/feature_list.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/test/scoped_feature_list.h"
-#include "brave/components/brave_vpn/brave_vpn_service_desktop.h"
+#include "brave/components/brave_vpn/brave_vpn_service.h"
 #include "brave/components/brave_vpn/brave_vpn_utils.h"
 #include "brave/components/brave_vpn/features.h"
 #include "brave/components/brave_vpn/pref_names.h"
@@ -55,7 +55,7 @@ class BraveVPNServiceTest : public testing::Test {
     skus_service_ = std::make_unique<skus::SkusServiceImpl>(&pref_service_,
                                                             url_loader_factory);
     auto callback = base::BindRepeating(GetSkusService);
-    service_ = std::make_unique<BraveVpnServiceDesktop>(
+    service_ = std::make_unique<BraveVpnService>(
         url_loader_factory, &pref_service_, callback);
   }
 
@@ -219,7 +219,7 @@ class BraveVPNServiceTest : public testing::Test {
   base::test::ScopedFeatureList scoped_feature_list_;
   content::BrowserTaskEnvironment task_environment_;
   sync_preferences::TestingPrefServiceSyncable pref_service_;
-  std::unique_ptr<BraveVpnServiceDesktop> service_;
+  std::unique_ptr<BraveVpnService> service_;
 };
 
 // TODO(bsclifton): re-enable test after figuring out why crash is happening
@@ -314,7 +314,7 @@ TEST_F(BraveVPNServiceTest, DISABLED_CancelConnectingTest) {
 
   service_->cancel_connecting_ = true;
   service_->connection_state_ = ConnectionState::CONNECTING;
-  service_->OnGetSubscriberCredential("", true);
+  service_->OnGetSubscriberCredentialV12("", true);
   EXPECT_FALSE(service_->cancel_connecting_);
   EXPECT_EQ(ConnectionState::DISCONNECTED, service_->connection_state_);
 
