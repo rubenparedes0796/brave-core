@@ -7,34 +7,35 @@
 
 #include "third_party/blink/public/platform/web_content_settings_client.h"
 
-#define EnsureUpdatedLanguage EnsureUpdatedLanguage_ChromiumImpl
+#define NavigatorLanguage NavigatorLanguage_ChromiumImpl
 #include "src/third_party/blink/renderer/core/frame/navigator_language.cc"
-#undef EnsureUpdatedLanguage
+#undef NavigatorLanguage
 
 namespace blink {
 
+NavigatorLanguage::NavigatorLanguage(ExecutionContext* execution_context)
+    : NavigatorLanguage_ChromiumImpl(execution_context) {}
+
 void NavigatorLanguage::EnsureUpdatedLanguage() {
-  LOG(ERROR) << "1";
-  EnsureUpdatedLanguage_ChromiumImpl();
-  languages_.clear();
-  languages_.push_back("zuul");
-#if 0
+  NavigatorLanguage_ChromiumImpl::EnsureUpdatedLanguage();
   blink::WebContentSettingsClient* settings =
       brave::GetContentSettingsClientFor(execution_context_);
   // If Brave Shields are down or anti-fingerprinting is off for this site,
   // do nothing.
-  LOG(ERROR) << "1";
   if (!settings || settings->GetBraveFarblingLevel() == BraveFarblingLevel::OFF)
     return;
-  LOG(ERROR) << "2";
   if (settings->GetBraveFarblingLevel() == BraveFarblingLevel::MAXIMUM) {
-    languages_.resize(2);
-    languages_[0] = "en-US";
-    languages_[1] = "en";
+    // If anti-fingerprinting is at maximum, override the entire language list
+    // regardless of locale or other settings.
+    languages_.clear();
+    languages_.push_back("en-US");
+    languages_.push_back("en");
   } else {
+    // If anti-fingerprinting is on at its default level, remove all but the
+    // first language. (Note: this method requires a non-empty list, which the
+    // upstream code guarantees.)
     languages_.Shrink(1);
   }
-#endif
 }
 
 }  // namespace blink

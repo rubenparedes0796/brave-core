@@ -20,9 +20,11 @@
 #include "chrome/common/chrome_content_client.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/language/core/browser/pref_names.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/permissions/permission_request.h"
 #include "components/prefs/pref_service.h"
+#include "components/user_prefs/user_prefs.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/test/browser_test.h"
@@ -109,6 +111,14 @@ class BraveNavigatorLanguagesFarblingBrowserTest : public InProcessBrowserTest {
     return WaitForLoadStop(web_contents());
   }
 
+  void SetAcceptLanguages(const std::string& accept_languages) {
+    content::BrowserContext* context =
+      static_cast<content::BrowserContext*>(browser()->profile());
+    PrefService* prefs = user_prefs::UserPrefs::Get(context);
+    prefs->Set(language::prefs::kSelectedLanguages,
+               base::Value(accept_languages));
+  }
+
  private:
   std::unique_ptr<ChromeContentClient> content_client_;
   std::unique_ptr<BraveContentBrowserClient> browser_content_client_;
@@ -124,19 +134,8 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorLanguagesFarblingBrowserTest,
   // Farbling level: off
   AllowFingerprinting(domain1);
   NavigateToURLUntilLoadStop(url1);
-#if 0
-  //FIXME
-  blink::LocalFrameToken frame_token = web_contents()->GetMainFrame()->GetFrameToken();
-  blink::WebLocalFrame* web_local_frame = blink::WebLocalFrame::FromFrameToken(frame_token);
-  //int routing_id = web_contents()->GetMainFrame()->GetRoutingID();
-  //content::RenderFrame* render_frame = content::RenderFrame::FromRoutingID(routing_id);
-  //blink::WebLocalFrame* web_local_frame = render_frame->GetWebFrame();
-  //blink::LocalFrame* local_frame = blink::DynamicTo<blink::LocalFrame>(web_local_frame);
-  blink::LocalDOMWindow* local_dom_window = local_frame->DomWindow();
-  blink::Navigator* navigator = local_dom_window->navigator();
-  navigator->SetLanguagesForTesting("en-US,en,es,la");
-#endif
   std::string testing_languages = "en-US,en,es,la";
+  SetAcceptLanguages(testing_languages);
   EXPECT_EQ(testing_languages,
             EvalJs(web_contents(), kNavigatorLanguagesScript));
   AllowFingerprinting(domain2);
@@ -161,7 +160,7 @@ IN_PROC_BROWSER_TEST_F(BraveNavigatorLanguagesFarblingBrowserTest,
   std::string strict_languages = "en-US,en";
   EXPECT_EQ(strict_languages,
             EvalJs(web_contents(), kNavigatorLanguagesScript));
-  AllowFingerprinting(domain2);
+  BlockFingerprinting(domain2);
   NavigateToURLUntilLoadStop(url2);
   EXPECT_EQ(strict_languages,
             EvalJs(web_contents(), kNavigatorLanguagesScript));
