@@ -129,9 +129,9 @@ BuildTransactionForReconciledTransactionsLastMonth(
   const double timestamp = time.ToDoubleT();
 
   TransactionInfo reconciled_transaction;
-  reconciled_transaction.id = base::GenerateGUID();
+  reconciled_transaction.id = base::GUID::GenerateRandomV4();
   reconciled_transaction.created_at = timestamp;
-  reconciled_transaction.creative_instance_id = base::GenerateGUID();
+  reconciled_transaction.creative_instance_id = base::GUID::GenerateRandomV4();
   reconciled_transaction.value = payment.balance;
   reconciled_transaction.ad_type = AdType::kAdNotification;
   reconciled_transaction.confirmation_type = ConfirmationType::kViewed;
