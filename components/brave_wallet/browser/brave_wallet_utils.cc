@@ -72,7 +72,7 @@ bool GetUseStagingInfuraEndpoint() {
   return env->HasVar("BRAVE_INFURA_STAGING");
 }
 
-const char kGanacheLocalhostURL[] = "http://localhost:7545/";
+const char kGanacheLocalhostURL[] = "http://127.0.0.1:1234/rpc/v0";
 
 // Precompiled networks available in native wallet.
 const brave_wallet::mojom::EthereumChain kKnownNetworks[] = {

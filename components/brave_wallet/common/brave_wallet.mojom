@@ -696,8 +696,9 @@ enum TransactionType {
 struct SolanaTxData {
 };
 
-// TODO(spylogsster): Fill the struct with needed fields.
 struct FilTxData {
+  string to;
+  string value;
 };
 
 union TxDataUnion {
