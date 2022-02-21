@@ -34,7 +34,7 @@
 #include "components/component_updater/component_updater_switches.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/keyed_service/core/service_access_type.h"
-#include "components/sync/base/sync_base_switches.h"
+#include "components/sync/base/command_line_switches.h"
 #include "ios/chrome/app/startup/provider_registration.h"
 #include "ios/chrome/app/startup_tasks.h"
 #include "ios/chrome/browser/application_context.h"
@@ -60,7 +60,7 @@ const BraveCoreSwitch BraveCoreSwitchComponentUpdater =
 const BraveCoreSwitch BraveCoreSwitchVModule =
     base::SysUTF8ToNSString(switches::kVModule);
 const BraveCoreSwitch BraveCoreSwitchSyncURL =
-    base::SysUTF8ToNSString(switches::kSyncServiceURL);
+    base::SysUTF8ToNSString(syncer::kSyncServiceURL);
 const BraveCoreSwitch BraveCoreSwitchSkusEnvironment =
     base::SysUTF8ToNSString(skus::switches::kSkusEnv);
 
