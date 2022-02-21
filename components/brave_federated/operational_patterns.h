@@ -63,16 +63,21 @@ class OperationalPatterns final {
  private:
   void OnCollectionSlotStartTimerFired();
   void OnSimulateLocalTrainingStepTimerFired();
-  void OnUploadComplete(scoped_refptr<net::HttpResponseHeaders> headers);
+  void OnUploadComplete(bool delete_signal,
+                        scoped_refptr<net::HttpResponseHeaders> headers);
 
+  void Send(std::string payload, bool delete_signal);
   void SendCollectionSlot();
+  void SendDelete();
 
   void SavePrefs();
   void LoadPrefs();
 
   std::string BuildPayload() const;
+  std::string BuildDeletePayload() const;
   int GetCurrentCollectionSlot() const;
 
+  void ResetCollectionId();
   void MaybeResetCollectionId();
 
   raw_ptr<PrefService> pref_service_ = nullptr;
