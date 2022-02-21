@@ -186,7 +186,8 @@ class BatAdsImpl :
         const ads::InlineContentAdInfo& ad);
 
     static void OnPurgeOrphanedAdEventsForType(
-        CallbackHolder<PurgeOrphanedAdEventsForTypeCallback>* holder);
+        CallbackHolder<PurgeOrphanedAdEventsForTypeCallback>* holder,
+        const bool success);
 
     static void OnRemoveAllHistory(
         CallbackHolder<RemoveAllHistoryCallback>* holder,

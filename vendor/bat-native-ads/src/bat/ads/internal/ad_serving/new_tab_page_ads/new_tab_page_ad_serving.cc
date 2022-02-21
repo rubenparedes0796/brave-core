@@ -111,6 +111,7 @@ bool AdServing::IsSupported() const {
 bool AdServing::ServeAd(const NewTabPageAdInfo& ad,
                         GetNewTabPageAdCallback callback) const {
   DCHECK(ad.IsValid());
+  DCHECK(!ad.wallpapers.empty());
 
   BLOG(1, "Serving new tab page ad:\n"
               << "  uuid: " << ad.uuid << "\n"

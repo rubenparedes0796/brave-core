@@ -691,12 +691,13 @@ void AdsServiceImpl::OnInitialize(const bool success) {
 void AdsServiceImpl::SetupOnFirstInitialize() {
   DCHECK(!is_setup_on_first_initialize_done_);
 
-  PurgeOrphanedAdEventsForType(
-      ads::mojom::AdType::kNewTabPageAd,
-      base::BindOnce(&AdsServiceImpl::PrefetchNewTabPageAd, AsWeakPtr()));
-
   file_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&RemoveDeprecatedAdsDataFiles, base_path_));
+
+  PurgeOrphanedAdEventsForType(
+      ads::mojom::AdType::kNewTabPageAd,
+      base::BindOnce(&AdsServiceImpl::OnPurgeOrphanedAdEventsForNewTabPageAds,
+                     AsWeakPtr()));
 }
 
 void AdsServiceImpl::ShutdownBatAds() {
@@ -1180,7 +1181,7 @@ void AdsServiceImpl::OnInlineContentAdEvent(
 
 void AdsServiceImpl::PurgeOrphanedAdEventsForType(
     const ads::mojom::AdType ad_type,
-    base::OnceClosure callback) {
+    PurgeOrphanedAdEventsForTypeCallback callback) {
   if (!connected()) {
     return;
   }
@@ -1330,6 +1331,17 @@ void AdsServiceImpl::OnGetInlineContentAd(OnGetInlineContentAdCallback callback,
   }
 
   std::move(callback).Run(success, dimensions, dictionary);
+}
+
+void AdsServiceImpl::OnPurgeOrphanedAdEventsForNewTabPageAds(
+    const bool success) {
+  if (!success) {
+    VLOG(0) << "Failed to purge orphaned ad events for new tab page ads";
+    return;
+  }
+
+  VLOG(0) << "Successfully purged orphaned ad events for new tab page ads";
+  PrefetchNewTabPageAd();
 }
 
 void AdsServiceImpl::OnGetAdsHistory(OnGetAdsHistoryCallback callback,

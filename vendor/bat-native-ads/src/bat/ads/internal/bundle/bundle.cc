@@ -306,6 +306,7 @@ BundleInfo Bundle::FromCatalog(const Catalog& catalog) const {
         info.image_url = creative.payload.image_url;
         info.alt = creative.payload.alt;
 
+        DCHECK(!creative.payload.wallpapers.empty());
         for (const auto& catalog_new_tab_page_ad_wallpaper :
              creative.payload.wallpapers) {
           CreativeNewTabPageAdWallpaperInfo wallpaper;

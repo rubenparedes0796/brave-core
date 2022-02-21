@@ -6,6 +6,7 @@
 #include "bat/ads/internal/ads/new_tab_page_ads/new_tab_page_ad.h"
 
 #include "base/check.h"
+#include "bat/ads/internal/account/account_util.h"
 #include "bat/ads/internal/ad_events/ad_event.h"
 #include "bat/ads/internal/ad_events/ad_event_info.h"
 #include "bat/ads/internal/ad_events/ad_event_util.h"
@@ -40,6 +41,16 @@ void NewTabPageAd::FireEvent(const std::string& uuid,
   if (uuid.empty() || creative_instance_id.empty()) {
     BLOG(1, "Failed to fire new tab page ad event due to invalid uuid "
                 << uuid << " or creative instance id " << creative_instance_id);
+    NotifyNewTabPageAdEventFailed(uuid, creative_instance_id, event_type);
+    return;
+  }
+
+  // Apply permission rules frequency capping for new tab page ad view events
+  // if Brave Ads are disabled.
+  new_tab_page_ads::frequency_capping::PermissionRules permission_rules;
+  if (event_type == mojom::NewTabPageAdEventType::kViewed &&
+      !permission_rules.HasPermission() && !ShouldRewardUser()) {
+    BLOG(1, "New tab page ad: Not allowed due to permission rules");
     NotifyNewTabPageAdEventFailed(uuid, creative_instance_id, event_type);
     return;
   }
@@ -86,6 +97,14 @@ void NewTabPageAd::FireEvent(const NewTabPageAdInfo& ad,
                "New tab page ad: Not allowed as already viewed uuid " << uuid);
           NotifyNewTabPageAdEventFailed(uuid, creative_instance_id, event_type);
           return;
+        }
+
+        if (event_type == mojom::NewTabPageAdEventType::kViewed &&
+            !ShouldRewardUser()) {
+          // Fire an ad served event if Brave Ads are disabled and the ad
+          // wasn't served by ads library.
+          FireEvent(uuid, creative_instance_id,
+                    mojom::NewTabPageAdEventType::kServed);
         }
 
         const auto ad_event =

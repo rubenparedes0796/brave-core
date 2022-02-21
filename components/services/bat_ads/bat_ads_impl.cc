@@ -186,7 +186,7 @@ void BatAdsImpl::PurgeOrphanedAdEventsForType(
       AsWeakPtr(), std::move(callback));
 
   auto purge_ad_events_for_type_callback =
-      std::bind(BatAdsImpl::OnPurgeOrphanedAdEventsForType, holder);
+      std::bind(BatAdsImpl::OnPurgeOrphanedAdEventsForType, holder, _1);
 
   ads_->PurgeOrphanedAdEventsForType(ad_type,
                                      purge_ad_events_for_type_callback);
@@ -338,9 +338,10 @@ void BatAdsImpl::OnGetInlineContentAd(
 }
 
 void BatAdsImpl::OnPurgeOrphanedAdEventsForType(
-    CallbackHolder<PurgeOrphanedAdEventsForTypeCallback>* holder) {
+    CallbackHolder<PurgeOrphanedAdEventsForTypeCallback>* holder,
+    const bool success) {
   if (holder->is_valid()) {
-    std::move(holder->get()).Run();
+    std::move(holder->get()).Run(success);
   }
 
   delete holder;

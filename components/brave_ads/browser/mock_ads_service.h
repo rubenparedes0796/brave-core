@@ -93,7 +93,7 @@ class MockAdsService : public AdsService {
                absl::optional<ads::NewTabPageAdInfo>());
 
   MOCK_METHOD2(PurgeOrphanedAdEventsForType,
-               void(ads::mojom::AdType, base::OnceClosure));
+               void(ads::mojom::AdType, PurgeOrphanedAdEventsForTypeCallback));
 
   MOCK_METHOD3(GetAdsHistory, void(double, double, OnGetAdsHistoryCallback));
 

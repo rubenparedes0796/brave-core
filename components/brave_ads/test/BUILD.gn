@@ -93,6 +93,7 @@ source_set("brave_ads_unit_tests") {
     "//brave/vendor/bat-native-ads/src/bat/ads/internal/ads/inline_content_ads/inline_content_ad_permission_rules_unittest_util.cc",
     "//brave/vendor/bat-native-ads/src/bat/ads/internal/ads/inline_content_ads/inline_content_ad_permission_rules_unittest_util.h",
     "//brave/vendor/bat-native-ads/src/bat/ads/internal/ads/inline_content_ads/inline_content_ad_unittest.cc",
+    "//brave/vendor/bat-native-ads/src/bat/ads/internal/ads/new_tab_page_ads/new_tab_page_ad_if_ads_disabled_unittest.cc",
     "//brave/vendor/bat-native-ads/src/bat/ads/internal/ads/new_tab_page_ads/new_tab_page_ad_permission_rules_unittest_util.cc",
     "//brave/vendor/bat-native-ads/src/bat/ads/internal/ads/new_tab_page_ads/new_tab_page_ad_permission_rules_unittest_util.h",
     "//brave/vendor/bat-native-ads/src/bat/ads/internal/ads/new_tab_page_ads/new_tab_page_ad_unittest.cc",

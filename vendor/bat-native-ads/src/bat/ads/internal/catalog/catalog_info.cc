@@ -271,6 +271,11 @@ bool CatalogInfo::FromJson(const std::string& json,
 
             creative_info.payload.wallpapers.push_back(wallpaper);
           }
+          if (creative_info.payload.wallpapers.empty()) {
+            BLOG(1, "Invalid wallpapers for creative instance id "
+                        << creative_instance_id);
+            continue;
+          }
 
           creative_set_info.creative_new_tab_page_ads.push_back(creative_info);
         } else if (code == "promoted_content_all_v1") {

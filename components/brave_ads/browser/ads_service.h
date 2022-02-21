@@ -56,6 +56,9 @@ using GetAccountStatementCallback = base::OnceCallback<
 using GetAdDiagnosticsCallback =
     base::OnceCallback<void(const bool, const std::string&)>;
 
+using PurgeOrphanedAdEventsForTypeCallback =
+    base::OnceCallback<void(const bool)>;
+
 class AdsService : public KeyedService {
  public:
   AdsService();
@@ -140,8 +143,9 @@ class AdsService : public KeyedService {
 
   virtual absl::optional<ads::NewTabPageAdInfo> GetPrefetchedNewTabPageAd() = 0;
 
-  virtual void PurgeOrphanedAdEventsForType(const ads::mojom::AdType ad_type,
-                                            base::OnceClosure callback) = 0;
+  virtual void PurgeOrphanedAdEventsForType(
+      const ads::mojom::AdType ad_type,
+      PurgeOrphanedAdEventsForTypeCallback callback) = 0;
 
   virtual void GetAdsHistory(const double from_timestamp,
                              const double to_timestamp,

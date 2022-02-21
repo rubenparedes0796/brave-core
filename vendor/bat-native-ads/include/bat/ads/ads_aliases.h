@@ -32,7 +32,7 @@ using GetAccountStatementCallback =
 using GetAdDiagnosticsCallback =
     std::function<void(const bool, const std::string&)>;
 
-using PurgeOrphanedAdEventsForTypeCallback = std::function<void()>;
+using PurgeOrphanedAdEventsForTypeCallback = std::function<void(const bool)>;
 
 }  // namespace ads
 

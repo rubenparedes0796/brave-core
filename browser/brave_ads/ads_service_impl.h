@@ -166,8 +166,9 @@ class AdsServiceImpl : public AdsService,
 
   absl::optional<ads::NewTabPageAdInfo> GetPrefetchedNewTabPageAd() override;
 
-  void PurgeOrphanedAdEventsForType(const ads::mojom::AdType ad_type,
-                                    base::OnceClosure callback) override;
+  void PurgeOrphanedAdEventsForType(
+      const ads::mojom::AdType ad_type,
+      PurgeOrphanedAdEventsForTypeCallback callback) override;
 
   void GetAdsHistory(const double from_timestamp,
                      const double to_timestamp,
@@ -277,6 +278,8 @@ class AdsServiceImpl : public AdsService,
                             const bool success,
                             const std::string& dimensions,
                             const std::string& json);
+
+  void OnPurgeOrphanedAdEventsForNewTabPageAds(const bool success);
 
   void OnGetAdsHistory(OnGetAdsHistoryCallback callback,
                        const std::string& json);

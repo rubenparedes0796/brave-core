@@ -92,7 +92,7 @@ interface BatAds {
   OnPromotedContentAdEvent(string uuid, string creative_instance_id, ads.mojom.PromotedContentAdEventType event_type);
   GetInlineContentAd(string size) => (bool success, string dimensions, string ad);
   OnInlineContentAdEvent(string uuid, string creative_instance_id, ads.mojom.InlineContentAdEventType event_type);
-  PurgeOrphanedAdEventsForType(ads.mojom.AdType ad_type) => ();
+  PurgeOrphanedAdEventsForType(ads.mojom.AdType ad_type) => (bool success);
   RemoveAllHistory() => (bool success);
   OnWalletUpdated(string payment_id, string seed);
   GetAdsHistory(double from_timestamp, double to_timestamp) => (string json);
