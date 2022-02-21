@@ -61,7 +61,7 @@ bool EthTxManager::ValidateTxData(const mojom::TxDataPtr& tx_data,
   }
   if (!tx_data->value.empty() && !IsValidHexString(tx_data->value)) {
     *error =
-        l10n_util::GetStringUTF8(IDS_WALLET_ETH_SEND_TRANSACTION_VALUE_INVALID);
+        l10n_util::GetStringUTF8(IDS_WALLET_SEND_TRANSACTION_VALUE_INVALID);
     return false;
   }
   // to must be a valid address if specified
@@ -159,7 +159,7 @@ void EthTxManager::AddUnapprovedTransaction(
   if (from.empty()) {
     std::move(callback).Run(
         false, "",
-        l10n_util::GetStringUTF8(IDS_WALLET_ETH_SEND_TRANSACTION_FROM_EMPTY));
+        l10n_util::GetStringUTF8(IDS_WALLET_SEND_TRANSACTION_FROM_EMPTY));
     return;
   }
   std::string error;
@@ -283,7 +283,7 @@ void EthTxManager::AddUnapproved1559Transaction(
   if (from.empty()) {
     std::move(callback).Run(
         false, "",
-        l10n_util::GetStringUTF8(IDS_WALLET_ETH_SEND_TRANSACTION_FROM_EMPTY));
+        l10n_util::GetStringUTF8(IDS_WALLET_SEND_TRANSACTION_FROM_EMPTY));
     return;
   }
   std::string error;

@@ -18,14 +18,14 @@
   <message name="IDS_WALLET_ETH_SEND_TRANSACTION_NONCE_INVALID" desc="Transaction data is not validated">Transaction data 'nonce' is not valid</message>
   <message name="IDS_WALLET_ETH_SEND_TRANSACTION_GAS_PRICE_INVALID" desc="Transaction data is not validated">Transaction data 'gasPrice' is not valid</message>
   <message name="IDS_WALLET_ETH_SEND_TRANSACTION_GAS_LIMIT_INVALID" desc="Transaction data is not validated">Transaction data 'gas' is not valid</message>
-  <message name="IDS_WALLET_ETH_SEND_TRANSACTION_VALUE_INVALID" desc="Transaction data is not validated">Transaction data 'value' is not valid</message>
+  <message name="IDS_WALLET_SEND_TRANSACTION_VALUE_INVALID" desc="Transaction data is not validated">Transaction data 'value' is not valid</message>
   <message name="IDS_WALLET_ETH_SEND_TRANSACTION_TO_INVALID" desc="Transaction data is not validated">Transaction data 'to' must be a valid address when specified</message>
   <message name="IDS_WALLET_ETH_SEND_TRANSACTION_GAS_PRICING_EXISTS" desc="Transaction data is not validated">Transaction data 'gasPrice' or 'maxFeePerGas' must be specified</message>
   <message name="IDS_WALLET_ETH_SEND_TRANSACTION_CHAIN_ID_INVALID" desc="Transaction data is not validated">Transaction data 'chainId' is not valid</message>
   <message name="IDS_WALLET_ETH_SEND_TRANSACTION_MAX_FEE_PER_GAS_INVALID" desc="Transaction data is not validated">Transaction data 'maxFeePerGas' is not valid</message>
   <message name="IDS_WALLET_ETH_SEND_TRANSACTION_MAX_PRIORITY_FEE_PER_GAS_INVALID" desc="Transaction data is not validated">Transaction data 'maxPriorityFeePerGas' is not valid</message>
   <message name="IDS_WALLET_ETH_SEND_TRANSACTION_CONVERT_TX_DATA" desc="Transaction data is not validated">Could not convert transaction data</message>
-  <message name="IDS_WALLET_ETH_SEND_TRANSACTION_FROM_EMPTY" desc="Transaction data is not validated">Transaction data 'from' must be specified</message>
+  <message name="IDS_WALLET_SEND_TRANSACTION_FROM_EMPTY" desc="Transaction data is not validated">Transaction data 'from' must be specified</message>
   <message name="IDS_WALLET_ETH_SEND_TRANSACTION_GET_GAS_PRICE_FAILED" desc="Failed to get gas price">Failed to get the gas price for the transaction</message>
   <message name="IDS_WALLET_ETH_SEND_TRANSACTION_GET_TX_TYPE_FAILED" desc="Failed to get tx type">Failed to get the type for the transaction</message>
   <message name="IDS_WALLET_ETH_SEND_TRANSACTION_GET_GAS_FEES_FAILED" desc="Failed to get gas fees">Failed to get the gas fees for EIP-1559 transaction</message>
@@ -426,5 +426,6 @@
   <message name="IDS_BRAVE_WALLET_TREZOR_SIGN_TYPED_DATA_ERROR" desc="The error text for unsupported API on Trezor device">
     Signing typed data is supported only on Trezor Model One with Firmware 1.10.5 or higher
   </message>
-<message name="IDS_BRAVE_WALLET_NOT_VALID_FIL_ADDRESS" desc="Send input not valid FIL address error">Not a valid FIL address</message>
+  <message name="IDS_BRAVE_WALLET_NOT_VALID_FIL_ADDRESS" desc="Send input not valid FIL address error">Not a valid FIL address</message>
+  <message name="IDS_WALLET_FIL_SEND_TRANSACTION_TO" desc="Error message if transaction 'to' is empty">Transaction data 'to' must be specified</message>
 </grit-part>

@@ -25,7 +25,6 @@ class FilTxManager : public TxManager {
                KeyringService* keyring_service,
                PrefService* prefs);
   ~FilTxManager() override = default;
-
   void AddUnapprovedTransaction(mojom::TxDataUnionPtr tx_data_union,
                                 const std::string& from,
                                 AddUnapprovedTransactionCallback) override;
@@ -48,6 +47,10 @@ class FilTxManager : public TxManager {
       GetTransactionMessageToSignCallback callback) override;
 
   void Reset() override;
+
+ private:
+  static bool ValidateTxData(const mojom::FilTxDataPtr& tx_data,
+                             std::string* error);
 };
 
 }  // namespace brave_wallet

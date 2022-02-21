@@ -20,6 +20,8 @@ static_library("common") {
     "eth_sign_typed_data_helper.h",
     "features.cc",
     "features.h",
+    "fil_address.cc",
+    "fil_address.h",
     "hash_utils.cc",
     "hash_utils.h",
     "hex_utils.cc",

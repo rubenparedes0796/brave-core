@@ -697,6 +697,9 @@ struct SolanaTxData {
 };
 
 struct FilTxData {
+  string nonce;
+  string gas_price;
+  string gas_limit;
   string to;
   string value;
 };

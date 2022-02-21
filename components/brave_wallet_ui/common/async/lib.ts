@@ -479,6 +479,9 @@ export async function sendEthTransaction (store: Store, payload: SendTransaction
 export async function sendFilTransaction (payload: SendTransactionParams) {
   const apiProxy = getAPIProxy()
   const filTxData: BraveWallet.FilTxData = {
+    nonce: '',
+    gasPrice: payload.gasPrice || '',
+    gasLimit: payload.gas || '',
     to: payload.to,
     value: payload.value
   }
