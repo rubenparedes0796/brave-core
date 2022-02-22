@@ -32,7 +32,7 @@ constexpr auto kSupportedRels = base::MakeFixedFlatSet<base::StringPiece>(
 std::vector<GURL> GetFeedURLsFromHTMLDocument(
     const std::string &html_body, const GURL& html_url) {
   VLOG(1) << "GetFeedURLsFromHTMLDocument";
-  std::regex link_regex(".*(<\\s*link [^>]+>).*",
+  std::regex link_regex("(<\\s*link [^>]+>)",
       std::regex_constants::ECMAScript | std::regex_constants::icase);
   auto links_begin =
       std::sregex_iterator(html_body.begin(), html_body.end(), link_regex);

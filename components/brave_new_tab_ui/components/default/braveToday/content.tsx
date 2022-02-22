@@ -147,7 +147,6 @@ export default function BraveTodayContent (props: Props) {
   return (
     <>
     {/* featured item */}
-      <div ref={onOptionsTriggerElement} />
       { feed.featuredItem && <CardLarge
         content={[feed.featuredItem]}
         publishers={publishers}
@@ -156,6 +155,7 @@ export default function BraveTodayContent (props: Props) {
         onReadFeedItem={props.onReadFeedItem}
       />
       }
+      <div ref={onOptionsTriggerElement} />
       <div {...{ [attributeNameCardCount]: 1 }} ref={registerCardCountTriggerElement} />
       <>
         <CardDisplayAd

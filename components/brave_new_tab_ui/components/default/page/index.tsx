@@ -255,6 +255,10 @@ export const GridItemNavigationBraveToday = styled('div')<{}>`
   left: 50%;
   transform: translate(-50%, 0);
   margin: 0 auto;
+  transition: bottom 2s ease-out;
+  [data-show-news-prompt] & {
+    bottom: 120px;
+  }
 `
 
 export const Footer = styled('footer')<{}>`

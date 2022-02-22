@@ -79,6 +79,7 @@ interface State {
   targetTopSiteForEditing?: NewTab.Site
   backgroundHasLoaded: boolean
   activeSettingsTab: SettingsTabType | null
+  promptBraveToday: boolean
 }
 
 function GetBackgroundImageSrc (props: Props) {
@@ -114,7 +115,8 @@ class NewTabPage extends React.Component<Props, State> {
     showSettingsMenu: false,
     showEditTopSite: false,
     backgroundHasLoaded: false,
-    activeSettingsTab: null
+    activeSettingsTab: null,
+    promptBraveToday: false
   }
 
   hasInitBraveToday: boolean = false
@@ -135,6 +137,9 @@ class NewTabPage extends React.Component<Props, State> {
       this.trackBrandedWallpaperNotificationAutoDismiss()
     }
     this.checkShouldOpenSettings()
+    setTimeout(() => {
+      this.setState({ promptBraveToday: true })
+    }, 1700)
   }
 
   componentDidUpdate (prevProps: Props) {
@@ -1100,6 +1105,7 @@ class NewTabPage extends React.Component<Props, State> {
         hasImage={hasImage}
         imageSrc={this.imageSource}
         imageHasLoaded={this.state.backgroundHasLoaded}
+        data-show-news-prompt={(this.state.backgroundHasLoaded && this.state.promptBraveToday) ? true : undefined}
       >
         <Page.Page
             hasImage={hasImage}

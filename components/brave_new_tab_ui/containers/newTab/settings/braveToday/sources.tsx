@@ -4,7 +4,7 @@
 // you can obtain one at http://mozilla.org/MPL/2.0/.
 
 import * as React from 'react'
-import { CaratRightIcon, LoaderIcon } from 'brave-ui/components/icons'
+import { CaratRightIcon, LoaderIcon, PlusIcon } from 'brave-ui/components/icons'
 import { getLocale } from '../../../../../common/locale'
 import { Publisher } from '../../../../api/brave_news'
 import {
@@ -116,7 +116,9 @@ export default function Sources (props: SourcesProps) {
     feedInputText,
     onRemoveDirectFeed,
     onChangeFeedInput,
-    onAddSource
+    feedSearchResults,
+    onAddSource,
+    onSearchForSources
   } = useManageDirectFeeds(props.publishers)
   // Set blank category on navigation back
   const onBack = React.useCallback(() => {
@@ -150,6 +152,28 @@ export default function Sources (props: SourcesProps) {
           {(feedInputIsValid === FeedInputValidity.NotValid) &&
             <Styled.FeedUrlError>Sorry, we couldn't find a feed at that address.</Styled.FeedUrlError>
           }
+          {(feedInputIsValid === FeedInputValidity.IsDuplicate) &&
+            <Styled.FeedUrlError>Seems like you already subscribe to that feed.</Styled.FeedUrlError>
+          }
+          {(feedInputIsValid === FeedInputValidity.HasResults) &&
+            <Styled.FeedSearchResults>
+              Multiple feeds were found:
+              {feedSearchResults.map(result => (
+                <Styled.ResultItem>
+                  <span title={result.feedUrl.url}>{result.feedTitle}</span>
+                  <Styled.TemporaryFixedButton
+                    disabled={result.status !== FeedInputValidity.Valid}
+                    brand='rewards'
+                    level='secondary'
+                    type='default'
+                    text={''}
+                    icon={{ image: (result.status === FeedInputValidity.Pending) ? <LoaderIcon /> : <PlusIcon />, position: 'before' }}
+                    onClick={onAddSource.bind(undefined, result.feedUrl.url)}
+                  />
+                </Styled.ResultItem>
+              ))}
+            </Styled.FeedSearchResults>
+          }
           <Styled.TemporaryFixedButton
             disabled={feedInputIsValid !== FeedInputValidity.Valid}
             brand='rewards'
@@ -157,7 +181,7 @@ export default function Sources (props: SourcesProps) {
             type='default'
             text={(feedInputIsValid !== FeedInputValidity.Pending) ? 'Add source' : ''}
             icon={(feedInputIsValid !== FeedInputValidity.Pending) ? undefined : { image: <LoaderIcon />, position: 'before' }}
-            onClick={onAddSource}
+            onClick={onSearchForSources}
           />
         </Styled.YourSources>
         <CategoryList

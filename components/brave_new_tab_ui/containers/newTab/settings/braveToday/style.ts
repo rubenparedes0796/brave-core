@@ -81,6 +81,22 @@ export const FeedInput = styled('input')`
   }
 `
 
+export const FeedSearchResults = styled('div')`
+  font-size: 16px;
+`
+
+export const ResultItem = styled('div')`
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  > span {
+    flex: 1 1 0;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+`
+
 export const YourSources = styled('div')`
   margin-bottom: 16px;
   border-bottom: solid 1px #E6E8F5;

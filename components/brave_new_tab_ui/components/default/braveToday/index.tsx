@@ -87,8 +87,8 @@ export default function BraveTodaySection (props: Props) {
   // by accident and get all the elements added.
   // Also sanity check isOptedIn, but without it there shouldn't be any content
   // anyway.
-  const shouldDisplayContent = props.isOptedIn &&
-    (props.hasInteracted || !!props.articleToScrollTo)
+  const shouldDisplayContent = props.isOptedIn //&&
+    // (props.hasInteracted || !!props.articleToScrollTo)
 
   return (
     <BraveTodayElement.Section>
@@ -97,7 +97,13 @@ export default function BraveTodaySection (props: Props) {
         style={{ position: 'sticky', top: '100px' }}
       />
       { !props.isOptedIn &&
-      <CardOptIn onOptIn={props.onOptIn} onDisable={props.onDisable} />
+      <>
+        {/* <div
+          ref={scrollTrigger}
+          style={{ position: 'sticky', top: '100px' }}
+        /> */}
+        <CardOptIn onOptIn={props.onOptIn} onDisable={props.onDisable} />
+      </>
       }
       { shouldDisplayContent &&
       <React.Suspense fallback={(<CardLoading />)}>
