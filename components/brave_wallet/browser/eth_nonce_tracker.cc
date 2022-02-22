@@ -62,9 +62,10 @@ void EthNonceTracker::GetNextNonce(const EthAddress& from,
                                    GetNextNonceCallback callback) {
   const std::string hex_address = from.ToHex();
   json_rpc_service_->GetTransactionCount(
-      hex_address, base::BindOnce(&EthNonceTracker::OnGetNetworkNonce,
-                                  weak_factory_.GetWeakPtr(), EthAddress(from),
-                                  std::move(callback)));
+      hex_address, mojom::CoinType::ETH,
+      base::BindOnce(&EthNonceTracker::OnGetNetworkNonce,
+                     weak_factory_.GetWeakPtr(), EthAddress(from),
+                     std::move(callback)));
 }
 
 void EthNonceTracker::OnGetNetworkNonce(EthAddress from,

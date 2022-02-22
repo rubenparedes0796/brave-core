@@ -86,6 +86,7 @@ class JsonRpcService : public KeyedService, public mojom::JsonRpcService {
                               mojom::ProviderError error,
                               const std::string& error_message)>;
   void GetTransactionCount(const std::string& address,
+                           mojom::CoinType coin,
                            GetTxCountCallback callback);
 
   using GetTxReceiptCallback =
@@ -268,6 +269,11 @@ class JsonRpcService : public KeyedService, public mojom::JsonRpcService {
                        const base::flat_map<std::string, std::string>& headers);
 
   void OnGetTransactionCount(
+      GetTxCountCallback callback,
+      const int status,
+      const std::string& body,
+      const base::flat_map<std::string, std::string>& headers);
+  void OnFilGetTransactionCount(
       GetTxCountCallback callback,
       const int status,
       const std::string& body,

@@ -59,7 +59,7 @@ base::Value FilTxStateManager::TxMetaToValue(const TxMeta& meta) {
   base::Value dict(base::Value::Type::DICTIONARY);
   dict.SetStringKey("id", meta.id);
   dict.SetIntKey("status", static_cast<int>(meta.status));
-  dict.SetStringKey("from", meta.from.ToHex());
+  dict.SetStringKey("from", meta.from.ToString());
   dict.SetKey("created_time", base::TimeToValue(meta.created_time));
   dict.SetKey("submitted_time", base::TimeToValue(meta.submitted_time));
   dict.SetKey("confirmed_time", base::TimeToValue(meta.confirmed_time));
@@ -80,16 +80,12 @@ mojom::TransactionInfoPtr FilTxStateManager::TxMetaToTransactionInfo(
   std::vector<std::string> tx_params;
   std::vector<std::string> tx_args;
   return mojom::TransactionInfo::New(
-      meta.id, meta.from.ToHex(), meta.tx_hash,
-      mojom::TxDataUnion::NewFilTxData(
-          mojom::FilTxData::New(
-              meta.tx->nonce() ? Uint256ValueToHex(meta.tx->nonce().value())
-                               : "",
-              Uint256ValueToHex(meta.tx->gas_price()),
-              Uint256ValueToHex(meta.tx->gas_limit()),
-              meta.tx->to().ToHex(),
-              Uint256ValueToHex(meta.tx->value())
-          )),
+      meta.id, meta.from.ToString(), meta.tx_hash,
+      mojom::TxDataUnion::NewFilTxData(mojom::FilTxData::New(
+          meta.tx->nonce() ? Uint256ValueToHex(meta.tx->nonce().value()) : "",
+          Uint256ValueToHex(meta.tx->gas_price()),
+          Uint256ValueToHex(meta.tx->gas_limit()), meta.tx->to().ToString(),
+          Uint256ValueToHex(meta.tx->value()))),
       meta.status, tx_type, tx_params, tx_args,
       base::Milliseconds(meta.created_time.ToJavaTime()),
       base::Milliseconds(meta.submitted_time.ToJavaTime()),
@@ -117,7 +113,7 @@ std::unique_ptr<TxMeta> FilTxStateManager::ValueToTxMeta(
   const std::string* from = value.FindStringKey("from");
   if (!from)
     return nullptr;
-  meta->from = FilAddress::FromHex(*from);
+  meta->from = FilAddress::FromString(*from);
 
   const base::Value* created_time = value.FindKey("created_time");
   if (!created_time)

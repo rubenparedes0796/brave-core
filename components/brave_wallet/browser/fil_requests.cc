@@ -13,4 +13,7 @@ std::string fil_getBalance(const std::string& address) {
   return GetJsonRpc1Param("Filecoin.WalletBalance", address);
 }
 
+std::string fil_getTransactionCount(const std::string& address) {
+  return GetJsonRpc1Param("Filecoin.MpoolGetNonce", address);
+}
 }  // namespace brave_wallet

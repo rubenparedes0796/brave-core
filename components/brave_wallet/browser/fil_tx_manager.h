@@ -50,6 +50,14 @@ class FilTxManager : public TxManager, public FilTxStateManager::Observer {
   void Reset() override;
   std::unique_ptr<FilTxStateManager::TxMeta> GetTxForTesting(
       const std::string& tx_meta_id);
+  void OnGetNetworkNonce(const std::string& from,
+                         const std::string& to,
+                         const std::string& value,
+                         std::unique_ptr<FilTransaction> tx,
+                         AddUnapprovedTransactionCallback callback,
+                         uint256_t network_nonce,
+                         mojom::ProviderError error,
+                         const std::string& error_message);
 
  private:
   friend class FilTxManagerUnitTest;
@@ -60,6 +68,7 @@ class FilTxManager : public TxManager, public FilTxStateManager::Observer {
                                 AddUnapprovedTransactionCallback callback);
 
   std::unique_ptr<FilTxStateManager> tx_state_manager_;
+  base::WeakPtrFactory<FilTxManager> weak_factory_{this};
 };
 
 }  // namespace brave_wallet

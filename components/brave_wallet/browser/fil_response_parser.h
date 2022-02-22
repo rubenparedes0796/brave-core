@@ -16,6 +16,7 @@ namespace brave_wallet {
 
 // Returns the balance of the account of given address.
 bool ParseFilGetBalance(const std::string& json, std::string* hex_balance);
+bool ParseFilGetTransactionCount(const std::string& json, uint256_t count);
 
 }  // namespace brave_wallet
 

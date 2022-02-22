@@ -576,12 +576,46 @@ void JsonRpcService::OnFilGetBalance(
 }
 
 void JsonRpcService::GetTransactionCount(const std::string& address,
+                                         mojom::CoinType coin,
                                          GetTxCountCallback callback) {
-  auto internal_callback =
-      base::BindOnce(&JsonRpcService::OnGetTransactionCount,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(callback));
-  return Request(eth::eth_getTransactionCount(address, "latest"), true,
-                 std::move(internal_callback));
+  if (coin == mojom::CoinType::ETH) {
+    auto internal_callback =
+        base::BindOnce(&JsonRpcService::OnGetTransactionCount,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(callback));
+
+    return Request(eth::eth_getTransactionCount(address, "latest"), true,
+                   std::move(internal_callback));
+  } else if (coin == mojom::CoinType::FIL) {
+    auto internal_callback =
+        base::BindOnce(&JsonRpcService::OnFilGetTransactionCount,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(callback));
+
+    return Request(fil_getTransactionCount(address), true,
+                   std::move(internal_callback));
+  }
+}
+
+void JsonRpcService::OnFilGetTransactionCount(
+    GetTxCountCallback callback,
+    const int status,
+    const std::string& body,
+    const base::flat_map<std::string, std::string>& headers) {
+  if (status < 200 || status > 299) {
+    std::move(callback).Run(
+        0, mojom::ProviderError::kInternalError,
+        l10n_util::GetStringUTF8(IDS_WALLET_INTERNAL_ERROR));
+    return;
+  }
+  uint256_t count;
+  if (!ParseFilGetTransactionCount(body, &count)) {
+    mojom::ProviderError error;
+    std::string error_message;
+    ParseErrorResult<mojom::ProviderError>(body, &error, &error_message);
+    std::move(callback).Run(0, error, error_message);
+    return;
+  }
+
+  std::move(callback).Run(count, mojom::ProviderError::kSuccess, "");
 }
 
 void JsonRpcService::OnGetTransactionCount(

@@ -80,7 +80,31 @@ void FilTxManager::AddUnapprovedTransaction(
             IDS_WALLET_ETH_SEND_TRANSACTION_CONVERT_TX_DATA));
     return;
   }
-  std::move(callback).Run(true, "", error);
+  auto tx_ptr = std::make_unique<FilTransaction>(*tx);
+
+  json_rpc_service_->GetTransactionCount(
+      from, mojom::CoinType::FIL,
+      base::BindOnce(&FilTxManager::OnGetNetworkNonce,
+                     weak_factory_.GetWeakPtr(), from, tx_data->to,
+                     tx_data->value, std::move(tx_ptr), std::move(callback)));
+}
+
+void FilTxManager::OnGetNetworkNonce(const std::string& from,
+                                     const std::string& to,
+                                     const std::string& value,
+                                     std::unique_ptr<FilTransaction> tx,
+                                     AddUnapprovedTransactionCallback callback,
+                                     uint256_t network_nonce,
+                                     mojom::ProviderError error,
+                                     const std::string& error_message) {
+  if (error != mojom::ProviderError::kSuccess) {
+    std::move(callback).Run(
+        false, "",
+        l10n_util::GetStringUTF8(
+            IDS_WALLET_ETH_SEND_TRANSACTION_GET_GAS_PRICE_FAILED));
+    return;
+  }
+  tx->set_nonce(network_nonce);
 }
 
 void FilTxManager::AddUnapprovedTransaction(

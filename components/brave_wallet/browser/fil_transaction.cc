@@ -49,7 +49,7 @@ absl::optional<FilTransaction> FilTransaction::FromTxData(
     }
   }
 
-  tx.to_ = FilAddress::FromHex(tx_data->to);
+  tx.to_ = FilAddress::FromString(tx_data->to);
   if (!HexValueToUint256(tx_data->value, &tx.value_))
     return absl::nullopt;
   return tx;
@@ -60,7 +60,7 @@ base::Value FilTransaction::ToValue() const {
   dict.SetStringKey("nonce", nonce_ ? Uint256ValueToHex(nonce_.value()) : "");
   dict.SetStringKey("gas_price", Uint256ValueToHex(gas_price_));
   dict.SetStringKey("gas_limit", Uint256ValueToHex(gas_limit_));
-  dict.SetStringKey("to", to_.ToHex());
+  dict.SetStringKey("to", to_.ToString());
   dict.SetStringKey("value", Uint256ValueToHex(value_));
 
   return dict;
@@ -96,7 +96,7 @@ absl::optional<FilTransaction> FilTransaction::FromValue(
   const std::string* to = value.FindStringKey("to");
   if (!to)
     return absl::nullopt;
-  tx.to_ = FilAddress::FromHex(*to);
+  tx.to_ = FilAddress::FromString(*to);
 
   const std::string* tx_value = value.FindStringKey("value");
   if (!tx_value)
