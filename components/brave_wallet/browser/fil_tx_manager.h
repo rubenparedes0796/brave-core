@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "brave/components/brave_wallet/browser/fil_tx_state_manager.h"
 #include "brave/components/brave_wallet/browser/tx_manager.h"
 
 class PrefService;
@@ -18,13 +19,13 @@ class TxService;
 class JsonRpcService;
 class KeyringService;
 
-class FilTxManager : public TxManager {
+class FilTxManager : public TxManager, public FilTxStateManager::Observer {
  public:
   FilTxManager(TxService* tx_service,
                JsonRpcService* json_rpc_service,
                KeyringService* keyring_service,
                PrefService* prefs);
-  ~FilTxManager() override = default;
+  ~FilTxManager() override;
   void AddUnapprovedTransaction(mojom::TxDataUnionPtr tx_data_union,
                                 const std::string& from,
                                 AddUnapprovedTransactionCallback) override;
@@ -47,10 +48,18 @@ class FilTxManager : public TxManager {
       GetTransactionMessageToSignCallback callback) override;
 
   void Reset() override;
+  std::unique_ptr<FilTxStateManager::TxMeta> GetTxForTesting(
+      const std::string& tx_meta_id);
 
  private:
+  friend class FilTxManagerUnitTest;
   static bool ValidateTxData(const mojom::FilTxDataPtr& tx_data,
                              std::string* error);
+  void AddUnapprovedTransaction(mojom::FilTxDataPtr tx_data,
+                                const std::string& from,
+                                AddUnapprovedTransactionCallback callback);
+
+  std::unique_ptr<FilTxStateManager> tx_state_manager_;
 };
 
 }  // namespace brave_wallet

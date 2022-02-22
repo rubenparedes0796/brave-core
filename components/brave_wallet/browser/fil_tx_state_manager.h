@@ -10,6 +10,17 @@
 #include <string>
 
 #include "brave/components/brave_wallet/browser/tx_state_manager.h"
+#include <utility>
+#include <vector>
+
+#include "base/memory/raw_ptr.h"
+#include "base/observer_list.h"
+#include "base/time/time.h"
+#include "brave/components/brave_wallet/browser/fil_transaction.h"
+#include "brave/components/brave_wallet/browser/json_rpc_service.h"
+#include "brave/components/brave_wallet/common/brave_wallet_types.h"
+#include "brave/components/brave_wallet/common/fil_address.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class PrefService;
 
@@ -29,9 +40,18 @@ class FilTxStateManager : public TxStateManager {
   FilTxStateManager(const FilTxStateManager&) = delete;
   FilTxStateManager operator=(const FilTxStateManager&) = delete;
 
+
  private:
   std::unique_ptr<TxMeta> ValueToTxMeta(const base::Value& value) override;
   std::string GetTxPrefPathPrefix() override;
+
+  static base::Value TxMetaToValue(const TxMeta& meta);
+
+ private:
+
+  std::string chain_id_;
+  std::string network_url_;
+  base::WeakPtrFactory<FilTxStateManager> weak_factory_;
 };
 
 }  // namespace brave_wallet

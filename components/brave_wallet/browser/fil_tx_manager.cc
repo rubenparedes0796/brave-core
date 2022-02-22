@@ -48,10 +48,16 @@ FilTxManager::FilTxManager(TxService* tx_service,
                 tx_service,
                 json_rpc_service,
                 keyring_service,
-                prefs) {}
+                prefs) {
+  tx_state_manager_->AddObserver(this);
+}
+
+FilTxManager::~FilTxManager() {
+  tx_state_manager_->RemoveObserver(this);
+}
 
 void FilTxManager::AddUnapprovedTransaction(
-    mojom::TxDataUnionPtr tx_data_union,
+    mojom::FilTxDataPtr tx_data,
     const std::string& from,
     AddUnapprovedTransactionCallback callback) {
   if (from.empty()) {
@@ -60,7 +66,7 @@ void FilTxManager::AddUnapprovedTransaction(
         l10n_util::GetStringUTF8(IDS_WALLET_SEND_TRANSACTION_FROM_EMPTY));
     return;
   }
-  const auto& tx_data = tx_data_union->get_fil_tx_data();
+
   std::string error;
   if (!FilTxManager::ValidateTxData(tx_data, &error)) {
     std::move(callback).Run(false, "", error);
@@ -75,6 +81,14 @@ void FilTxManager::AddUnapprovedTransaction(
     return;
   }
   std::move(callback).Run(true, "", error);
+}
+
+void FilTxManager::AddUnapprovedTransaction(
+    mojom::TxDataUnionPtr tx_data_union,
+    const std::string& from,
+    AddUnapprovedTransactionCallback callback) {
+  AddUnapprovedTransaction(std::move(tx_data_union->get_fil_tx_data()), from,
+                           std::move(callback));
 }
 
 void FilTxManager::ApproveTransaction(const std::string& tx_meta_id,
@@ -112,6 +126,11 @@ void FilTxManager::GetTransactionMessageToSign(
 
 void FilTxManager::Reset() {
   // TODO(spylogsster): reset members as necessary.
+}
+
+std::unique_ptr<FilTxStateManager::TxMeta> FilTxManager::GetTxForTesting(
+    const std::string& tx_meta_id) {
+  return tx_state_manager_->GetTx(tx_meta_id);
 }
 
 }  // namespace brave_wallet

@@ -30,7 +30,6 @@ class FilTransaction {
 
   static absl::optional<FilTransaction> FromTxData(
       const mojom::FilTxDataPtr& tx_data);
-  static absl::optional<FilTransaction> FromValue(const base::Value& value);
 
   absl::optional<uint256_t> nonce() const { return nonce_; }
   uint256_t gas_price() const { return gas_price_; }
@@ -43,7 +42,9 @@ class FilTransaction {
   void set_nonce(absl::optional<uint256_t> nonce) { nonce_ = nonce; }
   void set_gas_price(uint256_t gas_price) { gas_price_ = gas_price; }
   void set_gas_limit(uint256_t gas_limit) { gas_limit_ = gas_limit; }
-  base::Value ToValue() const;
+
+  virtual base::Value ToValue() const;
+  static absl::optional<FilTransaction> FromValue(const base::Value& value);
 
  protected:
   absl::optional<uint256_t> nonce_;

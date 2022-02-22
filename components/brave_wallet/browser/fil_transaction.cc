@@ -49,14 +49,21 @@ absl::optional<FilTransaction> FilTransaction::FromTxData(
     }
   }
 
-  if (!HexValueToUint256(tx_data->gas_price, &tx.gas_price_))
-    return absl::nullopt;
-  if (!HexValueToUint256(tx_data->gas_limit, &tx.gas_limit_))
-    return absl::nullopt;
   tx.to_ = FilAddress::FromHex(tx_data->to);
   if (!HexValueToUint256(tx_data->value, &tx.value_))
     return absl::nullopt;
   return tx;
+}
+
+base::Value FilTransaction::ToValue() const {
+  base::Value dict(base::Value::Type::DICTIONARY);
+  dict.SetStringKey("nonce", nonce_ ? Uint256ValueToHex(nonce_.value()) : "");
+  dict.SetStringKey("gas_price", Uint256ValueToHex(gas_price_));
+  dict.SetStringKey("gas_limit", Uint256ValueToHex(gas_limit_));
+  dict.SetStringKey("to", to_.ToHex());
+  dict.SetStringKey("value", Uint256ValueToHex(value_));
+
+  return dict;
 }
 
 // static
@@ -96,19 +103,7 @@ absl::optional<FilTransaction> FilTransaction::FromValue(
     return absl::nullopt;
   if (!HexValueToUint256(*tx_value, &tx.value_))
     return absl::nullopt;
-
   return tx;
-}
-
-base::Value FilTransaction::ToValue() const {
-  base::Value dict(base::Value::Type::DICTIONARY);
-  dict.SetStringKey("nonce", nonce_ ? Uint256ValueToHex(nonce_.value()) : "");
-  dict.SetStringKey("gas_price", Uint256ValueToHex(gas_price_));
-  dict.SetStringKey("gas_limit", Uint256ValueToHex(gas_limit_));
-  dict.SetStringKey("to", to_.ToHex());
-  dict.SetStringKey("value", Uint256ValueToHex(value_));
-
-  return dict;
 }
 
 }  // namespace brave_wallet
