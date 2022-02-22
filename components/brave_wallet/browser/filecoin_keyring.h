@@ -33,10 +33,6 @@ class FilecoinKeyring : public HDKeyring {
   void ImportFilecoinAccount(const std::vector<uint8_t>& input_key,
                              const std::string& address);
   std::string GetAddressInternal(HDKeyBase* hd_key_base) const override;
-
- private:
-  std::string CreateAddressWithProtocol(const std::vector<uint8_t>& payload,
-                                        int protocol) const;
 };
 
 }  // namespace brave_wallet

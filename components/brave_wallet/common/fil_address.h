@@ -9,15 +9,22 @@
 #include <string>
 #include <vector>
 
+#include "brave/components/brave_wallet/common/brave_wallet.mojom.h"
 #include "brave/components/brave_wallet/common/brave_wallet_types.h"
 
 namespace brave_wallet {
 
 class FilAddress {
  public:
-  static FilAddress FromPublicKey(const std::vector<uint8_t>& public_key);
-  static FilAddress FromHex(const std::string& input);
-  static FilAddress From(const std::string& input);
+  static FilAddress FromUncompressedPublicKey(
+      const std::vector<uint8_t>& public_key,
+      mojom::FilecoinAddressProtocol protocol,
+      const std::string& network);
+
+  static FilAddress FromPublicKey(const std::vector<uint8_t>& public_key,
+                                  mojom::FilecoinAddressProtocol protocol,
+                                  const std::string& network);
+  static FilAddress FromString(const std::string& address);
   static bool IsValidAddress(const std::string& input);
   FilAddress();
   FilAddress(const FilAddress& other);
@@ -27,12 +34,15 @@ class FilAddress {
 
   bool IsEmpty() const { return bytes_.empty(); }
   std::vector<uint8_t> bytes() const { return bytes_; }
-
-  std::string ToHex() const;
+  std::string ToString() const;
 
  private:
-  explicit FilAddress(const std::vector<uint8_t>& bytes);
+  explicit FilAddress(const std::vector<uint8_t>& bytes,
+                      mojom::FilecoinAddressProtocol protocol,
+                      const std::string& network);
 
+  mojom::FilecoinAddressProtocol protocol_;
+  std::string network_ = mojom::kFilecoinTestnet;
   std::vector<uint8_t> bytes_;
 };
 
