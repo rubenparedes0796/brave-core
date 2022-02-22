@@ -445,7 +445,9 @@ void CustomizeWebUIHTMLSource(const std::string &name,
         { "next", IDS_BRAVE_WELCOME_PAGE_NEXT_BUTTON },
         { "done", IDS_BRAVE_WELCOME_PAGE_DONE_BUTTON },
         { "privacyTitle", IDS_BRAVE_WELCOME_PAGE_PRIVACY_TITLE },
-        { "privacyDesc", IDS_BRAVE_WELCOME_PAGE_PRIVACY_DESC }
+        { "shieldsDesc", IDS_BRAVE_WELCOME_PAGE_SHIELDS_DESC },
+        { "p3aDesc", IDS_BRAVE_WELCOME_PAGE_P3A_DESC },
+        { "p3aCheckbox", IDS_BRAVE_WELCOME_PAGE_P3A_CHECKBOX },
       }
     }, {
       std::string("rewards"), {
