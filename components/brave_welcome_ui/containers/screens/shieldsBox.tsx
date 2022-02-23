@@ -26,93 +26,66 @@ const hackStyleDiv = {
   textAlign: 'center' as 'center',
   //display: 'block',
   WebkitFontSmoothing: 'antialiased',
-};
+}
+
 // Override margins on screen-select bullet buttons.
 const hackStyleInput = {
   margin: 12,
-};
-
-function contentWrap(index: number, currentScreen: number, inner) {
-  return (
-    <Content
-      zIndex={index}
-      active={index === currentScreen}
-      screenPosition={'1' + (index + 1) + '0%'}
-      isPrevious={index <= currentScreen}
-    >
-      <WelcomeShieldsImage />
-      <Title>{getLocale('privacyTitle')}</Title>
-      {inner}
-    </Content>
-  )
 }
 
 export default class ShieldsBox extends React.PureComponent<Props> {
   render () {
     const text = getLocale('p3aDesc').split('$1')
+    // TODO: Obtain this from a feature flag on the c++ side.
     const opt_in = true
+
+    // TODO: Record opt-in choice in component state and return it for reporting.
 
     const { index, currentScreen } = this.props
 
-    let desc
-    if (opt_in) { desc = [(
+    return (
+      <Content
+        zIndex={index}
+        active={index === currentScreen}
+        screenPosition={'1' + (index + 1) + '0%'}
+        isPrevious={index <= currentScreen}
+      >
+        <WelcomeShieldsImage />
+        <Title>{getLocale('privacyTitle')}</Title>
         <Paragraph>
           { getLocale('shieldsDesc') }
         </Paragraph>
-        ), (
-        <div style={hackStyleDiv}>
-          <label>
-            <input
-              type='checkbox'
-              style={hackStyleInput}
-            />
-            { getLocale('p3aCheckbox') }
-          </label>
-        </div>
-        ), (
+        {opt_in && (
+          <div style={hackStyleDiv}>
+            <label>
+              <input
+                type='checkbox'
+                style={hackStyleInput}
+              />
+              { getLocale('p3aCheckbox') }
+            </label>
+          </div>
+        )}
         <Paragraph>
-          {text[0]}
+          {text[0]},
           <a
             href='https://brave.com/p3a'
             target='_blank'
             rel='noopener noreferrer'
           >
             {text[1]}
-          </a>
-          {text[2]}
+          </a>,
+          {text[2]},
           <a
-            href='chrome://settings/privacy'
+            href='brave://settings/privacy'
             target='_blank'
             rel='noopener noreferrer'
           >
-            {text[3]}
-          </a>
+            {text[3]},
+          </a>,
           {text[4]}
         </Paragraph>
-      )]
-    } else { desc = (
-      <Paragraph>
-        { getLocale('shieldsDesc') }
-        {text[0]}
--          <a
--            href='https://brave.com/p3a'
--            target='_blank'
--            rel='noopener noreferrer'
--          >
--            {text[1]}
--          </a>
--          {text[2]}
--          <a
--            href='brave://settings/privacy'
--            target='_blank'
--            rel='noopener noreferrer'
--          >
--            {text[3]}
--          </a>
--          {text[4]}
-      </Paragraph>
-    )}
-
-    return contentWrap(index, currentScreen, desc)
+      </Content>
+    )
   }
 }
