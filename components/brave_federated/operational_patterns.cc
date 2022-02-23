@@ -30,6 +30,7 @@ constexpr char kLastCheckedSlotPrefName[] = "brave.federated.last_checked_slot";
 constexpr char kCollectionIdPrefName[] = "brave.federated.collection_id";
 constexpr char kCollectionIdExpirationPrefName[] =
     "brave.federated.collection_id_expiration";
+constexpr int kMinutesBeforeRetry = 5;
 
 net::NetworkTrafficAnnotationTag GetNetworkTrafficAnnotationTag() {
   return net::DefineNetworkTrafficAnnotation("operational_pattern", R"(
@@ -125,7 +126,7 @@ void OperationalPatterns::OnSimulateLocalTrainingStepTimerFired() {
   SendCollectionSlot();
 }
 
-void OperationalPatterns::Send(std::string payload, bool delete_signal) {
+void OperationalPatterns::PrepareSend(std::string payload) {
   auto resource_request = std::make_unique<network::ResourceRequest>();
   resource_request->url = GURL(federatedLearningUrl);
   resource_request->headers.SetHeader("X-Brave-FL-Operational-Patterns", "?1");
@@ -136,11 +137,6 @@ void OperationalPatterns::Send(std::string payload, bool delete_signal) {
   url_loader_ = network::SimpleURLLoader::Create(
       std::move(resource_request), GetNetworkTrafficAnnotationTag());
   url_loader_->AttachStringForUpload(payload, "application/json");
-
-  url_loader_->DownloadHeadersOnly(
-      url_loader_factory_.get(),
-      base::BindOnce(&OperationalPatterns::OnUploadComplete,
-                     base::Unretained(this), std::move(delete_signal)));
 }
 
 void OperationalPatterns::SendCollectionSlot() {
@@ -151,26 +147,45 @@ void OperationalPatterns::SendCollectionSlot() {
 
   MaybeResetCollectionId();
 
-  Send(BuildPayload(), false);
+  PrepareSend(BuildPayload());
+
+  url_loader_->DownloadHeadersOnly(
+      url_loader_factory_.get(),
+      base::BindOnce(&OperationalPatterns::OnCollectionSlotUploadComplete,
+                     base::Unretained(this)));
 }
 
 void OperationalPatterns::SendDelete() {
-  Send(BuildDeletePayload(), true);
+  PrepareSend(BuildDeletePayload());
+
+  url_loader_->DownloadHeadersOnly(
+      url_loader_factory_.get(),
+      base::BindOnce(&OperationalPatterns::OnDeleteUploadComplete,
+                     base::Unretained(this)));
 }
 
-void OperationalPatterns::OnUploadComplete(
-    bool delete_signal,
+void OperationalPatterns::OnCollectionSlotUploadComplete(
     scoped_refptr<net::HttpResponseHeaders> headers) {
   int response_code = -1;
   if (headers)
     response_code = headers->response_code();
   if (response_code == 200) {
-    if (!delete_signal) {
-      last_checked_slot_ = current_collected_slot_;
-      SavePrefs();
-    } else {
-      ResetCollectionId();
-    }
+    last_checked_slot_ = current_collected_slot_;
+    SavePrefs();
+  }
+}
+
+void OperationalPatterns::OnDeleteUploadComplete(
+    scoped_refptr<net::HttpResponseHeaders> headers) {
+  int response_code = -1;
+  if (headers)
+    response_code = headers->response_code();
+  if (response_code == 200) {
+    ResetCollectionId();
+  } else {
+    auto retry_timer = std::make_unique<base::RetainingOneShotTimer>();
+    retry_timer->Start(FROM_HERE, base::Seconds(kMinutesBeforeRetry * 60), this,
+                       &OperationalPatterns::SendDelete);
   }
 }
 

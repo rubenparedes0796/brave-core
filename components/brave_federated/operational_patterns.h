@@ -63,10 +63,11 @@ class OperationalPatterns final {
  private:
   void OnCollectionSlotStartTimerFired();
   void OnSimulateLocalTrainingStepTimerFired();
-  void OnUploadComplete(bool delete_signal,
-                        scoped_refptr<net::HttpResponseHeaders> headers);
+  void OnCollectionSlotUploadComplete(
+      scoped_refptr<net::HttpResponseHeaders> headers);
+  void OnDeleteUploadComplete(scoped_refptr<net::HttpResponseHeaders> headers);
 
-  void Send(std::string payload, bool delete_signal);
+  void PrepareSend(std::string payload);
   void SendCollectionSlot();
   void SendDelete();
 
