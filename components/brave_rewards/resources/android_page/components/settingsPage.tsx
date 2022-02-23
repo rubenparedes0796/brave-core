@@ -227,6 +227,19 @@ class SettingsPage extends React.Component<Props, State> {
             onClose={this.actions.hideRedirectModal}
           />
         )
+      case 'flaggedWalletModal':
+        return (
+          <ModalRedirect
+            id={'redirect-modal-flagged-wallet'}
+            errorText={getLocale('redirectModalFlaggedWalletText')}
+            errorTextLink={'https://support.brave.com/hc/en-us/articles/4494596374925'}
+            titleText={getLocale('redirectModalFlaggedWalletTitle')}
+            buttonText={getLocale('redirectModalClose')}
+            walletType={walletType}
+            isMobile={true}
+            onClick={this.actions.hideRedirectModal}
+          />
+        )
       case 'kycRequiredModal':
         return (
           <ModalRedirect
