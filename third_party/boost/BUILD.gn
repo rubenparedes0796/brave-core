@@ -1,0 +1,17 @@
+config("boost_config") {
+  visibility = [
+    "//brave/components/brave_wallet/browser",
+    "//brave/components/brave_wallet/common",
+  ]
+
+  defines = [
+    "BOOST_MP_STANDALONE=1",
+    "BOOST_NO_EXCEPTIONS=1",
+    "BOOST_DISABLE_THREADS=1",
+  ]
+
+  include_dirs = [
+    "config/include",
+    "multiprecision/include",
+  ]
+}
