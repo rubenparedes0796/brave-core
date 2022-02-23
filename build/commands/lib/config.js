@@ -410,10 +410,7 @@ Config.prototype.buildArgs = function () {
     args.enable_widevine = false
     args.safe_browsing_mode = 2
 
-    if (this.buildConfig !== 'Release') {
-      // treat non-release builds like Debug builds
-      args.treat_warnings_as_errors = false
-    } else {
+    if (this.buildConfig === 'Release') {
       // otherwise there is build error
       // ld.lld: error: output file too large: 5861255936 bytes
       args.symbol_level = 1
