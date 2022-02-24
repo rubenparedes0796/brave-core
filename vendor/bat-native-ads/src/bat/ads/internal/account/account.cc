@@ -237,6 +237,12 @@ void Account::OnFailedToConfirm(const ConfirmationInfo& confirmation) {
   TopUpUnblindedTokens();
 }
 
+void Account::OnIssuersOutOfDate() {
+  BLOG(1, "Issuers are out of date");
+
+  MaybeGetIssuers();
+}
+
 void Account::OnDidGetIssuers(const IssuersInfo& issuers) {
   const absl::optional<IssuerInfo>& issuer_optional =
       GetIssuerForType(issuers, IssuerType::kPayments);

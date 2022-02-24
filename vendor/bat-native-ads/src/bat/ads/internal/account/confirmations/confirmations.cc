@@ -5,6 +5,7 @@
 
 #include "bat/ads/internal/account/confirmations/confirmations.h"
 
+#include <cmath>
 #include <cstdint>
 #include <vector>
 
@@ -18,6 +19,7 @@
 #include "bat/ads/confirmation_type.h"
 #include "bat/ads/internal/account/account_util.h"
 #include "bat/ads/internal/account/confirmations/confirmations_state.h"
+#include "bat/ads/internal/account/issuers/issuers_util.h"
 #include "bat/ads/internal/account/redeem_unblinded_token/create_confirmation_util.h"
 #include "bat/ads/internal/account/redeem_unblinded_token/redeem_unblinded_token.h"
 #include "bat/ads/internal/account/redeem_unblinded_token/user_data/confirmation_dto_user_data_builder.h"
@@ -32,6 +34,7 @@
 #include "bat/ads/internal/time_formatting_util.h"
 #include "bat/ads/pref_names.h"
 #include "bat/ads/transaction_info.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ads {
 
@@ -39,7 +42,8 @@ namespace {
 const int64_t kRetryAfterSeconds = 15;
 }  // namespace
 
-Confirmations::Confirmations(privacy::TokenGeneratorInterface* token_generator)
+Confirmations::Confirmations(
+    privacy::cbr::TokenGeneratorInterface* token_generator)
     : token_generator_(token_generator),
       redeem_unblinded_token_(std::make_unique<RedeemUnblindedToken>()) {
   DCHECK(token_generator_);
@@ -66,10 +70,10 @@ void Confirmations::Confirm(const TransactionInfo& transaction) {
         const base::DictionaryValue* user_data_dictionary = nullptr;
         user_data.GetAsDictionary(&user_data_dictionary);
 
-        const ConfirmationInfo& confirmation =
-            CreateConfirmation(transaction.id, transaction.creative_instance_id,
-                               transaction.confirmation_type,
-                               transaction.ad_type, *user_data_dictionary);
+        const ConfirmationInfo& confirmation = CreateConfirmation(
+            transaction.id, transaction.creative_instance_id,
+            transaction.confirmation_type, transaction.ad_type,
+            transaction.value, *user_data_dictionary);
 
         redeem_unblinded_token_->Redeem(confirmation);
       });
@@ -122,6 +126,7 @@ ConfirmationInfo Confirmations::CreateConfirmation(
     const std::string& creative_instance_id,
     const ConfirmationType& confirmation_type,
     const AdType& ad_type,
+    const double value,
     const base::DictionaryValue& user_data) const {
   DCHECK(!transaction_id.empty());
   DCHECK(!creative_instance_id.empty());
@@ -135,6 +140,7 @@ ConfirmationInfo Confirmations::CreateConfirmation(
   confirmation.creative_instance_id = creative_instance_id;
   confirmation.type = confirmation_type;
   confirmation.ad_type = ad_type;
+  confirmation.value = value;
   confirmation.created_at = base::Time::Now();
 
   if (ShouldRewardUser() &&
@@ -144,13 +150,10 @@ ConfirmationInfo Confirmations::CreateConfirmation(
 
     confirmation.unblinded_token = unblinded_token;
 
-    const std::vector<Token>& tokens = token_generator_->Generate(1);
-    confirmation.payment_token = tokens.front();
+    confirmation.tokens = GenerateTokensForValue(value);
 
-    const std::vector<BlindedToken>& blinded_tokens =
-        privacy::BlindTokens(tokens);
-    const BlindedToken blinded_token = blinded_tokens.front();
-    confirmation.blinded_payment_token = blinded_token;
+    confirmation.blinded_tokens =
+        privacy::cbr::BlindTokens(confirmation.tokens);
 
     std::string json;
     base::JSONWriter::Write(user_data, &json);
@@ -165,6 +168,22 @@ ConfirmationInfo Confirmations::CreateConfirmation(
   }
 
   return confirmation;
+}
+
+privacy::cbr::TokenList Confirmations::GenerateTokensForValue(
+    const double value) const {
+  int token_count = 1;
+
+  const absl::optional<double> smallest_denomination_optional =
+      GetSmallestNonZeroDenominationForIssuerType(IssuerType::kPayments);
+
+  if (value > 0.0 && smallest_denomination_optional) {
+    const double smallest_denomination = smallest_denomination_optional.value();
+
+    token_count = static_cast<int>(ceil(value / smallest_denomination));
+  }
+
+  return token_generator_->Generate(token_count);
 }
 
 void Confirmations::CreateNewConfirmationAndAppendToRetryQueue(
@@ -184,7 +203,8 @@ void Confirmations::CreateNewConfirmationAndAppendToRetryQueue(
 
         const ConfirmationInfo& new_confirmation = CreateConfirmation(
             confirmation.transaction_id, confirmation.creative_instance_id,
-            confirmation.type, confirmation.ad_type, *user_data_dictionary);
+            confirmation.type, confirmation.ad_type, confirmation.value,
+            *user_data_dictionary);
 
         AppendToRetryQueue(new_confirmation);
       });
@@ -245,7 +265,6 @@ void Confirmations::OnDidSendConfirmation(
   }
 
   StopRetrying();
-
   ProcessRetryQueue();
 }
 
@@ -305,19 +324,13 @@ void Confirmations::OnDidRedeemUnblindedToken(
   }
 
   StopRetrying();
-
   ProcessRetryQueue();
 }
 
 void Confirmations::OnFailedToRedeemUnblindedToken(
     const ConfirmationInfo& confirmation,
     const bool should_retry) {
-  BLOG(1, "Failed to redeem unblinded token for "
-              << std::string(confirmation.ad_type) << " with confirmation id "
-              << confirmation.id << ", transaction id "
-              << confirmation.transaction_id << ", creative instance id "
-              << confirmation.creative_instance_id << " and "
-              << std::string(confirmation.type));
+  NotifyFailedToConfirm(confirmation);
 
   if (should_retry) {
     if (!confirmation.was_created) {
@@ -332,6 +345,12 @@ void Confirmations::OnFailedToRedeemUnblindedToken(
   }
 
   ProcessRetryQueue();
+}
+
+void Confirmations::OnIssuersOutOfDate() {
+  if (delegate_) {
+    delegate_->OnIssuersOutOfDate();
+  }
 }
 
 }  // namespace ads
