@@ -1,4 +1,4 @@
-import("//chrome/common/features.gni")
+import("//extensions/buildflags/buildflags.gni")
 
 if (is_android || is_ios) {
   source_set("common") {
