@@ -5,6 +5,7 @@
 
 #include "brave/browser/brave_browser_process_impl.h"
 
+#include <string>
 #include <utility>
 
 #include "base/bind.h"
