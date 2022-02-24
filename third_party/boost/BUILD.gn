@@ -1,7 +1,5 @@
 config("boost_config") {
-  visibility = [
-    "//brave/components/brave_wallet/common",
-  ]
+  visibility = [ ":*" ]
 
   defines = [
     "BOOST_MP_STANDALONE=1",
@@ -13,4 +11,9 @@ config("boost_config") {
     "config/include",
     "multiprecision/include",
   ]
+}
+
+group("boost") {
+  visibility = [ "//brave/components/brave_wallet/common" ]
+  public_configs = [ ":boost_config" ]
 }

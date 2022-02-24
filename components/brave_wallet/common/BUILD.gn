@@ -39,7 +39,7 @@ static_library("common") {
     "//url",
   ]
 
-  public_configs = [ "//brave/third_party/boost:boost_config" ]
+  public_deps = [ "//brave/third_party/boost" ]
 }
 
 source_set("common_constants") {
