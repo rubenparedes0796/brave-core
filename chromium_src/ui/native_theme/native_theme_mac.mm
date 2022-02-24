@@ -6,25 +6,9 @@
 #include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/native_theme_mac.h"
 
-namespace ui {
-#if 0
-bool ShouldOverride(NativeTheme::ColorId color_id) {
-  return color_id == NativeTheme::kColorId_FocusedBorderColor;
-}
-
-#define GET_BRAVE_COLOR(color_id)                                          \
-  if (ShouldOverride(color_id)) {                                          \
-    return GetAuraColor(color_id, NativeTheme::GetInstanceForNativeUi());  \
-  }
-#endif
-#define GET_BRAVE_COLOR(color_id)
-
-}  // namespace ui
-
 #define GetSystemButtonPressedColor GetSystemButtonPressedColor_ChromiumImpl
 #include "src/ui/native_theme/native_theme_mac.mm"
 #undef GetSystemButtonPressedColor
-#undef GET_BRAVE_COLOR
 
 namespace ui {
 
