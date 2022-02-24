@@ -12,12 +12,12 @@
 
 #include "base/bind.h"
 #include "base/json/json_reader.h"
-#include "base/rand_util.h"
 #include "base/system/sys_info.h"
 #include "base/task/post_task.h"
 #include "brave/browser/brave_browser_main_extra_parts.h"
 #include "brave/browser/brave_browser_process.h"
 #include "brave/browser/brave_shields/brave_shields_web_contents_observer.h"
+#include "brave/browser/brave_shields/reduce_language_navigation_throttle.h"
 #include "brave/browser/brave_wallet/brave_wallet_context_utils.h"
 #include "brave/browser/brave_wallet/brave_wallet_provider_delegate_impl.h"
 #include "brave/browser/brave_wallet/brave_wallet_service_factory.h"
@@ -47,7 +47,6 @@
 #include "brave/components/brave_shields/browser/ad_block_service.h"
 #include "brave/components/brave_shields/browser/brave_shields_util.h"
 #include "brave/components/brave_shields/browser/domain_block_navigation_throttle.h"
-#include "brave/components/brave_shields/browser/reduce_language_navigation_throttle.h"
 #include "brave/components/brave_shields/common/brave_shield_constants.h"
 #include "brave/components/brave_shields/common/features.h"
 #include "brave/components/brave_vpn/buildflags/buildflags.h"
@@ -342,9 +341,7 @@ void MaybeBindSkusSdkImpl(
 
 }  // namespace
 
-BraveContentBrowserClient::BraveContentBrowserClient()
-    : session_token_(base::RandUint64()),
-      incognito_session_token_(base::RandUint64()) {}
+BraveContentBrowserClient::BraveContentBrowserClient() {}
 
 BraveContentBrowserClient::~BraveContentBrowserClient() {}
 
@@ -604,11 +601,8 @@ void BraveContentBrowserClient::AppendExtraCommandLineSwitches(
       Profile* profile =
           process ? Profile::FromBrowserContext(process->GetBrowserContext())
                   : nullptr;
-      if (profile && !profile->IsOffTheRecord()) {
-        session_token = session_token_;
-      } else {
-        session_token = incognito_session_token_;
-      }
+      session_token = g_brave_browser_process->session_token(
+          profile && !profile->IsOffTheRecord());
     }
     command_line->AppendSwitchASCII("brave_session_token",
                                     base::NumberToString(session_token));
