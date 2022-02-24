@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "brave/third_party/boost/multiprecision/include/boost/multiprecision/cpp_int.hpp"
+#include "boost/multiprecision/cpp_int.hpp"
 
 namespace brave_wallet {
 
