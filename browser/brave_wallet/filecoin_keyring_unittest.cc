@@ -27,6 +27,70 @@ std::string GetPublicKey(const std::string& private_key_hex) {
 }
 }  // namespace
 
+TEST(FilecoinKeyring, DecodeImportPayload) {
+  std::string private_key_hex;
+  std::vector<uint8_t> private_key;
+  mojom::FilecoinAddressProtocol protocol;
+  ASSERT_FALSE(FilecoinKeyring::DecodeImportPayload(private_key_hex, nullptr,
+                                                    &protocol));
+
+  ASSERT_FALSE(FilecoinKeyring::DecodeImportPayload(private_key_hex,
+                                                    &private_key, nullptr));
+  EXPECT_TRUE(private_key.empty());
+
+  ASSERT_FALSE(
+      FilecoinKeyring::DecodeImportPayload("", &private_key, &protocol));
+  EXPECT_TRUE(private_key.empty());
+
+  // broken json
+  ASSERT_FALSE(FilecoinKeyring::DecodeImportPayload(
+      "7b2254797065223a22626c73222c22507269766174654b6579223a2270536e7752332f38"
+      "55616b53516f777858742b345a75393257586d424d526e74716d6448696136724853453d"
+      "22",
+      &private_key, &protocol));
+  EXPECT_TRUE(private_key.empty());
+  // no type in json
+  ASSERT_FALSE(FilecoinKeyring::DecodeImportPayload(
+      "7b22507269766174654b6579223a2270536e7752332f3855616b53516f777858742b345a"
+      "75393257586d424d526e74716d6448696136724853453d22207d",
+      &private_key, &protocol));
+  EXPECT_TRUE(private_key.empty());
+
+  // no private key in json
+  ASSERT_FALSE(FilecoinKeyring::DecodeImportPayload(
+      "7b2254797065223a22626c73227d", &private_key, &protocol));
+  EXPECT_TRUE(private_key.empty());
+
+  // type empty
+  ASSERT_FALSE(FilecoinKeyring::DecodeImportPayload(
+      "7b2254797065223a22222c22507269766174654b6579223a2270536e7752332f3855616b"
+      "53516f777858742b345a75393257586d424d526e74716d6448696136724853453d227d",
+      &private_key, &protocol));
+  EXPECT_TRUE(private_key.empty());
+
+  // private key empty
+  ASSERT_FALSE(FilecoinKeyring::DecodeImportPayload(
+      "7b2254797065223a22626c73222c22507269766174654b6579223a22227d",
+      &private_key, &protocol));
+  EXPECT_TRUE(private_key.empty());
+
+  // private key with broken encoding
+  ASSERT_FALSE(FilecoinKeyring::DecodeImportPayload(
+      "7b2254797065223a22626c73222c22507269766174654b6579223a227053227d",
+      &private_key, &protocol));
+  EXPECT_TRUE(private_key.empty());
+
+  private_key_hex =
+      "7b2254797065223a22626c73222c22507269766174654b6579223a2270536e7752332f38"
+      "55616b53516f777858742b345a75393257586d424d526e74716d6448696136724853453d"
+      "227d";
+  ASSERT_TRUE(FilecoinKeyring::DecodeImportPayload(private_key_hex,
+                                                   &private_key, &protocol));
+  EXPECT_EQ(base::Base64Encode(private_key),
+            "pSnwR3/8UakSQowxXt+4Zu92WXmBMRntqmdHia6rHSE=");
+  EXPECT_EQ(protocol, mojom::FilecoinAddressProtocol::BLS);
+}
+
 TEST(FilecoinKeyring, ImportFilecoinSECP) {
   std::string private_key_base64 =
       "rQG5jnbc+y64fckG+T0EHVwpLBmW9IgAT7U990HXcGk=";
@@ -36,48 +100,59 @@ TEST(FilecoinKeyring, ImportFilecoinSECP) {
   std::vector<uint8_t> private_key(input_key.begin(), input_key.end());
 
   FilecoinKeyring keyring;
-  auto address = keyring.ImportFilecoinSECP256K1Account(
-      private_key, mojom::kFilecoinTestnet);
+  auto address =
+      keyring.ImportFilecoinAccount(private_key, mojom::kFilecoinTestnet,
+                                    mojom::FilecoinAddressProtocol::SECP256K1);
   EXPECT_EQ(address, "t1lqarsh4nkg545ilaoqdsbtj4uofplt6sto26ziy");
   EXPECT_EQ(keyring.GetImportedAccountsNumber(), size_t(1));
 }
 #if BUILDFLAG(ENABLE_RUST_BLS)
 TEST(FilecoinKeyring, ImportFilecoinBLS) {
   std::string private_key_hex =
-      "6a4b3d3f3ccb3676e34e16bc07a9371dede3a037def6114e79e51705f823723f";
+      "7b2254797065223a22626c73222c22507269766174654b6579223a2270536e7752332f38"
+      "55616b53516f777858742b345a75393257586d424d526e74716d6448696136724853453d"
+      "227d";
   std::vector<uint8_t> private_key;
-  ASSERT_TRUE(base::HexStringToBytes(private_key_hex, &private_key));
-
+  mojom::FilecoinAddressProtocol protocol;
+  ASSERT_TRUE(FilecoinKeyring::DecodeImportPayload(private_key_hex,
+                                                   &private_key, &protocol));
+  EXPECT_EQ(protocol, mojom::FilecoinAddressProtocol::BLS);
   FilecoinKeyring keyring;
-  std::string address =
-      keyring.ImportFilecoinBLSAccount(private_key, mojom::kFilecoinTestnet);
+  std::string address = keyring.ImportFilecoinAccount(
+      private_key, mojom::kFilecoinTestnet, protocol);
   EXPECT_EQ(address,
-            "t3wv3u6pmfi3j6pf3fhjkch372pkyg2tgtlb3jpu3eo6mnt7ttsft6x2xr54ct7fl2"
-            "oz4o4tpa4mvigcrayh4a");
+            "t3wwtato54ee5aod7j5uv2n75jpyn4hpwx3f2kx5cijtoxgytiul2dczrak3ghlbt5"
+            "zjnj574y3snhcb5bthva");
   EXPECT_EQ(keyring.GetImportedAccountsNumber(), size_t(1));
 
   // empty private key
-  ASSERT_TRUE(
-      keyring.ImportFilecoinBLSAccount({}, mojom::kFilecoinTestnet).empty());
+  ASSERT_TRUE(keyring
+                  .ImportFilecoinAccount({}, mojom::kFilecoinTestnet,
+                                         mojom::FilecoinAddressProtocol::BLS)
+                  .empty());
 
   // broken private key
   private_key_hex = "6a4b3d3f3ccb3676e34e16bc07a937";
   std::vector<uint8_t> broken_private_key;
   ASSERT_TRUE(base::HexStringToBytes(private_key_hex, &broken_private_key));
-  ASSERT_TRUE(
-      keyring
-          .ImportFilecoinBLSAccount(broken_private_key, mojom::kFilecoinTestnet)
-          .empty());
+  ASSERT_TRUE(keyring
+                  .ImportFilecoinAccount(broken_private_key,
+                                         mojom::kFilecoinTestnet,
+                                         mojom::FilecoinAddressProtocol::BLS)
+                  .empty());
 
   std::vector<uint8_t> zero_private_key(32, 0);
-  EXPECT_EQ(keyring.ImportFilecoinBLSAccount(zero_private_key,
-                                             mojom::kFilecoinTestnet),
-            "t3yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            "aaaaaaaaaaaaby2smx7a");
+  EXPECT_EQ(
+      keyring.ImportFilecoinAccount(zero_private_key, mojom::kFilecoinTestnet,
+                                    mojom::FilecoinAddressProtocol::BLS),
+      "t3yaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "aaaaaaaaaaaaby2smx7a");
   std::vector<uint8_t> ff_private_key(32, 255);
-  ASSERT_TRUE(
-      keyring.ImportFilecoinBLSAccount(ff_private_key, mojom::kFilecoinTestnet)
-          .empty());
+  ASSERT_TRUE(keyring
+                  .ImportFilecoinAccount(ff_private_key,
+                                         mojom::kFilecoinTestnet,
+                                         mojom::FilecoinAddressProtocol::BLS)
+                  .empty());
 }
 
 TEST(FilecoinKeyring, fil_private_key_public_key) {

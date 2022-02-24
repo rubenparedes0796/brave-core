@@ -6,6 +6,7 @@
 #ifndef BRAVE_COMPONENTS_BRAVE_WALLET_BROWSER_FILECOIN_KEYRING_H_
 #define BRAVE_COMPONENTS_BRAVE_WALLET_BROWSER_FILECOIN_KEYRING_H_
 
+#include <stdint.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -25,13 +26,16 @@ class FilecoinKeyring : public HDKeyring {
   FilecoinKeyring(const FilecoinKeyring&) = delete;
   FilecoinKeyring& operator=(const FilecoinKeyring&) = delete;
 
-  std::string ImportFilecoinSECP256K1Account(
-      const std::vector<uint8_t>& input_key,
-      const std::string& network);
-  std::string ImportFilecoinBLSAccount(const std::vector<uint8_t>& private_key,
-                                       const std::string& network);
-  void ImportFilecoinAccount(const std::vector<uint8_t>& input_key,
-                             const std::string& address);
+  static bool DecodeImportPayload(const std::string& payload_hex,
+                                  std::vector<uint8_t>* private_key_out,
+                                  mojom::FilecoinAddressProtocol* protocol_out);
+
+  std::string ImportFilecoinAccount(const std::vector<uint8_t>& private_key,
+                                    const std::string& network,
+                                    mojom::FilecoinAddressProtocol protocol);
+
+  void RestoreFilecoinAccount(const std::vector<uint8_t>& input_key,
+                              const std::string& address);
   std::string GetAddressInternal(HDKeyBase* hd_key_base) const override;
 };
 

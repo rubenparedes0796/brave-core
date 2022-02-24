@@ -136,16 +136,10 @@ class KeyringService : public KeyedService, public mojom::KeyringService {
                              const std::string& password,
                              const std::string& json,
                              ImportAccountCallback callback) override;
-  void ImportFilecoinSECP256K1Account(
-      const std::string& account_name,
-      const std::string& private_key,
-      const std::string& network,
-      ImportFilecoinSECP256K1AccountCallback callback) override;
-  void ImportFilecoinBLSAccount(
-      const std::string& account_name,
-      const std::string& private_key,
-      const std::string& network,
-      ImportFilecoinBLSAccountCallback callback) override;
+  void ImportFilecoinAccount(const std::string& account_name,
+                             const std::string& private_key,
+                             const std::string& network,
+                             ImportFilecoinAccountCallback callback) override;
   void AddHardwareAccounts(
       std::vector<mojom::HardwareWalletAccountPtr> info) override;
   void RemoveHardwareAccount(const std::string& address,

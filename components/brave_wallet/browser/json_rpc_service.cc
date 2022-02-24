@@ -606,7 +606,7 @@ void JsonRpcService::OnFilGetTransactionCount(
         l10n_util::GetStringUTF8(IDS_WALLET_INTERNAL_ERROR));
     return;
   }
-  uint256_t count;
+  uint256_t count = 0;
   if (!ParseFilGetTransactionCount(body, &count)) {
     mojom::ProviderError error;
     std::string error_message;
