@@ -45,7 +45,7 @@ export interface Props {
   portfolioPriceHistory: PriceDataObjectType[]
   selectedPortfolioTimeline: BraveWallet.AssetPriceTimeframe
   selectedTimeline: BraveWallet.AssetPriceTimeframe
-  networkList: BraveWallet.EthereumChain[]
+  networkList: BraveWallet.NetworkInfo[]
   accounts: WalletAccountType[]
   needsBackup: boolean
   userVisibleTokensInfo: BraveWallet.BlockchainToken[]
