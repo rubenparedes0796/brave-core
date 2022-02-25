@@ -16,6 +16,7 @@
 #include "brave/browser/ui/webui/brave_federated/federated_internals_page_handler_impl.h"
 #include "brave/browser/ui/webui/brave_webui_source.h"
 #include "brave/common/webui_url_constants.h"
+#include "brave/components/brave_federated/resources/grit/federated_internals_resources_map.h"
 #include "brave/components/brave_federated/brave_federated_service.h"
 #include "brave/components/brave_federated/data_store_service.h"
 #include "brave/components/brave_federated/data_stores/ad_notification_timing_data_store.h"
@@ -27,6 +28,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "chrome/browser/ui/webui/webui_util.h"
 
 
 FederatedInternalsUI::FederatedInternalsUI(content::WebUI* web_ui)
@@ -39,11 +41,12 @@ FederatedInternalsUI::FederatedInternalsUI(content::WebUI* web_ui)
   html_source->AddString("userName", "Bob");
   html_source->UseStringsJs();
 
+   webui::SetupWebUIDataSource(
+      html_source, base::make_span(kFederatedInternalsResources, kFederatedInternalsResourcesSize),
+      IDR_FEDERATED_INTERNALS_HTML);
+
   html_source->AddResourcePath("federated_internals.css",
                                IDR_FEDERATED_INTERNALS_CSS);
-//   html_source->AddResourcePath("federated_internals.js",
-//                                IDR_FEDERATED_INTERNALS_JS);
-  html_source->SetDefaultResource(IDR_FEDERATED_INTERNALS_HTML);
 
   content::BrowserContext* browser_context =
       web_ui->GetWebContents()->GetBrowserContext();

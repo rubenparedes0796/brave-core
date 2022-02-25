@@ -1,4 +1,5 @@
 import("//chrome/common/features.gni")
+import("//tools/grit/preprocess_if_expr.gni")
 import("//tools/grit/grit_rule.gni")
 import("//tools/polymer/html_to_js.gni")
 import("//tools/typescript/ts_library.gni")
@@ -11,7 +12,7 @@ grit("resources") {
 
   # These arguments are needed since the grd is generated at build time.
   enable_input_discovery_for_gn_analyze = false
-  source = "$target_gen_dir/federated_internals_resources.grd"
+  source = "$target_gen_dir/resources.grd"
   deps = [ ":build_grd" ]
 
   outputs = [
@@ -21,8 +22,7 @@ grit("resources") {
     "federated_internals_resources.pak",
   ]
   
-  output_dir = "$root_gen_dir/brave/browser/resources/federated_internals"
-  resource_ids = "//brave/browser/resources/resource_ids"
+  output_dir = "$root_gen_dir/brave/"
 }
 
 generate_grd("build_grd") {
@@ -45,10 +45,10 @@ copy("copy_proxy") {
 
 copy("copy_mojo") {
   deps = [
-    "//brave/browser/ui/webui/federated_internals:mojo_bindings_webui_js",
+    "//brave/browser/ui/webui/brave_federated:mojo_bindings_webui_js",
   ]
-  mojom_folder = "$root_gen_dir/mojom-webui/brave/browser/ui/webui/federated_internals/"
-  sources = [ "$mojom_folder/federated_internals.mojom-webui.js" ]
+  mojom_folder = "$root_gen_dir/mojom-webui/brave/browser/ui/webui/brave_federated/"
+  sources = [ "$mojom_folder/brave_federated.mojom-webui.js" ]
   outputs = [ "$target_gen_dir/{{source_file_part}}" ]
 }
 

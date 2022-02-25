@@ -258,6 +258,8 @@ source_set("ui") {
     # to pull in dependencies needed for the overwrite codes in chromium_src.
     "//brave/browser/ui/brave_ads",
     "//brave/browser/ui/brave_tooltips",
+    "//brave/components/brave_federated",
+    "//brave/browser/resources/brave_federated:resources",
     "//brave/browser/ui/webui/brave_federated:mojo_bindings",
     "//brave/chromium_src/chrome/browser/ui",
     "//brave/common",
@@ -312,6 +314,8 @@ source_set("ui") {
     "//ui/gfx",
     "//ui/resources",
     "//url",
+    "//mojo/public/cpp/bindings",
+    "//ui/base/mojom"
   ]
 
   if (toolkit_views) {
@@ -366,6 +370,7 @@ source_set("ui") {
       "//brave/browser/resources/sidebar:resources",
       "//brave/browser/ui/sidebar",
       "//brave/browser/ui/webui/sidebar:mojo_bindings",
+      "//brave/browser/ui/webui/brave_federated:mojo_bindings",
       "//brave/components/sidebar",
       "//chrome/app:generated_resources",
       "//components/bookmarks/browser",

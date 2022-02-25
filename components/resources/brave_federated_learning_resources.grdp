@@ -2,5 +2,4 @@
 <grit-part>
     <include name="IDR_FEDERATED_INTERNALS_HTML" file="../brave_federated/resources/internals/federated_internals.html" type="BINDATA" />
     <include name="IDR_FEDERATED_INTERNALS_CSS" file="../brave_federated/resources/internals/federated_internals.css" type="BINDATA" />
-    <!-- <include name="IDR_FEDERATED_INTERNALS_JS" file="../brave_federated/resources/internals/federated_internals.js" type="BINDATA" /> -->
 </grit-part>
