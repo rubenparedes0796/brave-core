@@ -113,12 +113,11 @@ def GetNearestChromiumVersionAndUrl(tag):
             'r') as config_file:
     chrome_versions = json.load(config_file)
 
-  subprocess.check_call(['git', 'fetch', 'origin', r'refs/tags/*:refs/tags/*'],
+  subprocess.check_call(['git', 'fetch', 'origin', ('refs/tags/%s' % tag)],
                         cwd=os.path.join(src_dir, 'brave'))
   package_json = json.loads(
-      subprocess.check_output(
-          ['git', 'show', '%s:package.json' % tag],
-          cwd=os.path.join(src_dir, 'brave')))
+      subprocess.check_output(['git', 'show', 'FETCH_HEAD:package.json'],
+                              cwd=os.path.join(src_dir, 'brave')))
   requested_version = package_json['config']['projects']['chrome']['tag']
 
   parsed_requested_version = ParseVersion(requested_version)
