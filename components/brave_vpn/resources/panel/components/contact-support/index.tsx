@@ -12,6 +12,8 @@ interface Props {
 
 function ContactSupport (props: Props) {
   const handleSubmit = () => {
+    // TODO(bsclifton): make call out to Guardian API
+    // more info TBD
   }
 
   return (
@@ -28,10 +30,8 @@ function ContactSupport (props: Props) {
           </S.BackButton>
         </S.PanelHeader>
         <S.List>
-          <li>VPN hostname:</li>
-          <li>App Version:</li>
           <li>
-            Issue:
+            Subject
             <select name="issue" id="contact-support-issue">
               <option value="">Please choose a reason</option>
               <option value="cant-connect">Cannot connect to the VPN (Other error)</option>
@@ -41,7 +41,19 @@ function ContactSupport (props: Props) {
               <option value="other">Other</option>
             </select>
           </li>
-          <li>App Version:</li>
+          <li>
+            Describe your issue
+          </li>
+          <li>Please select the information you're comfortable sharing with us</li>
+          <li>VPN hostname:</li>
+          <li>App version:</li>
+          <li>OS version:</li>
+          <li>
+            The more information you share with us the easier it will be for the support
+            staff to help you resolve your issue.
+
+            Support provided with the help of the Guardian team.
+          </li>
         </S.List>
         <Button
           level='primary'
