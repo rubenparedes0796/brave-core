@@ -1,0 +1,40 @@
+diff --git a/tools/perf/process_perf_results.py b/tools/perf/process_perf_results.py
+index c08a7d8380caac90d9634b27071fc1a117f30911..dcfb69ac6662069d8d5ecb308b9a8fafe1533ccf 100755
+--- a/tools/perf/process_perf_results.py
++++ b/tools/perf/process_perf_results.py
+@@ -39,7 +39,7 @@ except ImportError:
+   pass
+ 
+ 
+-RESULTS_URL = 'https://chromeperf.appspot.com'
++RESULTS_URL = 'https://brave-perf-dashboard.appspot.com'
+ 
+ # Until we are migrated to LUCI, we will be utilizing a hard
+ # coded master name based on what is passed in in the build properties.
+@@ -353,7 +353,7 @@ def process_perf_results(output_json,
+ 
+     # Second, upload all the benchmark logs to logdog and add a page entry for
+     # those links in extra_links.
+-    _handle_perf_logs(benchmark_directory_map, extra_links)
++    # _handle_perf_logs(benchmark_directory_map, extra_links)
+ 
+   # Then try to obtain the list of json test results to merge
+   # and determine the status of each benchmark.
+@@ -674,7 +674,7 @@ def _handle_perf_results(
+       is_reference, upload_failure=not upload_succeed)
+ 
+   logdog_file_name = _generate_unique_logdog_filename('Results_Dashboard_')
+-  logdog_stream = logdog_helper.text(logdog_file_name,
++  logdog_stream = None if True else logdog_helper.text(logdog_file_name,
+       json.dumps(dict(logdog_dict), sort_keys=True,
+                   indent=4, separators=(',', ': ')),
+       content_type=JSON_CONTENT_TYPE)
+@@ -702,7 +702,7 @@ def _write_perf_data_to_logfile(benchmark_name, output_file,
+       except ValueError:
+         logging.error('Error parsing perf results JSON for benchmark  %s' %
+               benchmark_name)
+-    if results:
++    if False: # Brave don't use logdog
+       try:
+         output_json_file = logdog_helper.open_text(benchmark_name)
+         json.dump(results, output_json_file,
