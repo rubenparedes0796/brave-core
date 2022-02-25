@@ -259,7 +259,7 @@ export default class ModalActivity extends React.PureComponent<Props, State> {
       },
       {
         id: 'monthlyContributions',
-        title: getLocale('monthlyContributions'),
+        title: getLocale('monthlyTips'),
         content: this.getMonthlyContributionTable
       },
       {

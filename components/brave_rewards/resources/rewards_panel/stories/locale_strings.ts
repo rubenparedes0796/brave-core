@@ -21,7 +21,7 @@ export const localeStrings = {
   attention: 'Attention',
   sendTip: 'Send Tip',
   includeInAutoContribute: 'Include in Auto-Contribute',
-  monthlyContribution: 'Monthly Contribution',
+  monthlyContribution: 'Monthly Tip',
   ok: 'OK',
   set: 'Set',
   changeAmount: 'Change amount',

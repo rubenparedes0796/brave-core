@@ -199,7 +199,7 @@ export function PublisherCard () {
             </style.autoContribution>
         }
         <style.monthlyContribution>
-          <div>{getString('monthlyContribution')}</div>
+          <div>{getString('monthlyTip')}</div>
           <div>
             <MonthlyTipView
               publisherInfo={publisherInfo}
