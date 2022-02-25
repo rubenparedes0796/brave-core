@@ -13,12 +13,9 @@
 #include <utility>
 #include <vector>
 
-#include "base/memory/raw_ptr.h"
-#include "base/observer_list.h"
-#include "base/time/time.h"
-#include "brave/components/brave_wallet/browser/fil_transaction.h"
-#include "brave/components/brave_wallet/browser/json_rpc_service.h"
-#include "brave/components/brave_wallet/common/brave_wallet_types.h"
+#include "base/gtest_prod_util.h"
+#include "brave/components/brave_wallet/browser/tx_state_manager.h"
+#include "brave/components/brave_wallet/common/brave_wallet.mojom.h"
 #include "brave/components/brave_wallet/common/fil_address.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -31,6 +28,7 @@ class Value;
 namespace brave_wallet {
 
 class TxMeta;
+class FilTxMeta;
 class JsonRpcService;
 
 class FilTxStateManager : public TxStateManager {

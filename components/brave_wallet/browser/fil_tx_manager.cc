@@ -10,6 +10,8 @@
 #include "base/notreached.h"
 #include "brave/components/brave_wallet/browser/fil_tx_state_manager.h"
 #include "brave/components/brave_wallet/browser/fil_transaction.h"
+#include "brave/components/brave_wallet/browser/fil_tx_meta.h"
+#include "brave/components/brave_wallet/browser/json_rpc_service.h"
 #include "brave/components/brave_wallet/common/fil_address.h"
 #include "brave/components/brave_wallet/common/hex_utils.h"
 #include "components/grit/brave_components_strings.h"
@@ -18,7 +20,7 @@
 namespace brave_wallet {
 
 // static
-bool FilTxManager::ValidateTxData(const mojom::FilTxDataPtr& tx_data,
+bool FilTxManager::ValidateTxData(const mojom::TxDataPtr& tx_data,
                                   std::string* error) {
   CHECK(error);
   // 'to' cannot be empty
@@ -68,7 +70,8 @@ void FilTxManager::AddUnapprovedTransaction(
   }
 
   std::string error;
-  if (!FilTxManager::ValidateTxData(tx_data, &error)) {
+  if (!tx_data->base_data ||
+      !FilTxManager::ValidateTxData(tx_data->base_data, &error)) {
     std::move(callback).Run(false, "", error);
     return;
   }
@@ -85,8 +88,9 @@ void FilTxManager::AddUnapprovedTransaction(
   json_rpc_service_->GetTransactionCount(
       from, mojom::CoinType::FIL,
       base::BindOnce(&FilTxManager::OnGetNetworkNonce,
-                     weak_factory_.GetWeakPtr(), from, tx_data->to,
-                     tx_data->value, std::move(tx_ptr), std::move(callback)));
+                     weak_factory_.GetWeakPtr(), from, tx_data->base_data->to,
+                     tx_data->base_data->value, std::move(tx_ptr),
+                     std::move(callback)));
 }
 
 void FilTxManager::OnGetNetworkNonce(const std::string& from,
@@ -105,6 +109,11 @@ void FilTxManager::OnGetNetworkNonce(const std::string& from,
     return;
   }
   tx->set_nonce(network_nonce);
+
+  std::move(callback).Run(
+      false, "",
+      l10n_util::GetStringUTF8(
+          IDS_WALLET_ETH_SEND_TRANSACTION_GET_GAS_PRICE_FAILED));
 }
 
 void FilTxManager::AddUnapprovedTransaction(
@@ -152,9 +161,9 @@ void FilTxManager::Reset() {
   // TODO(spylogsster): reset members as necessary.
 }
 
-std::unique_ptr<FilTxStateManager::TxMeta> FilTxManager::GetTxForTesting(
+std::unique_ptr<FilTxMeta> FilTxManager::GetTxForTesting(
     const std::string& tx_meta_id) {
-  return tx_state_manager_->GetTx(tx_meta_id);
+  return tx_state_manager_->GetFilTx(tx_meta_id);
 }
 
 }  // namespace brave_wallet

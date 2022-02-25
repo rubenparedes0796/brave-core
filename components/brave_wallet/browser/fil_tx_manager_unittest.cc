@@ -10,6 +10,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "brave/components/brave_wallet/browser/brave_wallet_prefs.h"
 #include "brave/components/brave_wallet/browser/fil_tx_manager.h"
+#include "brave/components/brave_wallet/browser/fil_tx_meta.h"
 #include "brave/components/brave_wallet/browser/fil_tx_state_manager.h"
 #include "brave/components/brave_wallet/browser/hd_keyring.h"
 #include "brave/components/brave_wallet/browser/json_rpc_service.h"
@@ -162,8 +163,10 @@ class FilTxManagerUnitTest : public testing::Test {
 TEST_F(FilTxManagerUnitTest,
        AddUnapprovedTransactionWithoutGasPriceAndGasLimit) {
   auto tx_data = mojom::FilTxData::New(
-      "" /* nonce */, "" /* gas_price */, "" /* gas_limit */,
-      "t1h4n7rphclbmwyjcp6jrdiwlfcuwbroxy3jvg33q", "0x11");
+      mojom::TxData::New("" /* nonce */, "" /* gas_price */, "" /* gas_limit */,
+                         "t1h4n7rphclbmwyjcp6jrdiwlfcuwbroxy3jvg33q", "0x11",
+                         std::vector<uint8_t>()),
+      mojom::kLocalhostChainId);
   bool callback_called = false;
   std::string tx_meta_id;
 

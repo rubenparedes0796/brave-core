@@ -694,11 +694,8 @@ struct SolanaTxData {
 };
 
 struct FilTxData {
-  string nonce;
-  string gas_price;
-  string gas_limit;
-  string to;
-  string value;
+  TxData base_data;
+  string chain_id;
 };
 
 union TxDataUnion {

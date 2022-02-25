@@ -25,33 +25,39 @@ FilTransaction::FilTransaction(absl::optional<uint256_t> nonce,
                                uint256_t gas_price,
                                uint256_t gas_limit,
                                const FilAddress& to,
-                               uint256_t value)
+                               uint256_t value,
+                               const std::vector<uint8_t>& data)
     : nonce_(nonce),
       gas_price_(gas_price),
       gas_limit_(gas_limit),
       to_(to),
-      value_(value) {}
+      value_(value),
+      data_(data) {}
 FilTransaction::~FilTransaction() = default;
 
 bool FilTransaction::operator==(const FilTransaction& tx) const {
   return nonce_ == tx.nonce_ && gas_price_ == tx.gas_price_ &&
-         gas_limit_ == tx.gas_limit_ && to_ == tx.to_ && value_ == tx.value_;
+         gas_limit_ == tx.gas_limit_ && to_ == tx.to_ && value_ == tx.value_ &&
+         std::equal(data_.begin(), data_.end(), tx.data_.begin()) &&
+         v_ == tx.v_ && std::equal(r_.begin(), r_.end(), tx.r_.begin()) &&
+         std::equal(s_.begin(), s_.end(), tx.s_.begin());
 }
 
 // static
 absl::optional<FilTransaction> FilTransaction::FromTxData(
     const mojom::FilTxDataPtr& tx_data) {
   FilTransaction tx;
-  if (!tx_data->nonce.empty()) {
+  if (!tx_data->base_data->nonce.empty()) {
     uint256_t nonce_uint;
-    if (HexValueToUint256(tx_data->nonce, &nonce_uint)) {
+    if (HexValueToUint256(tx_data->base_data->nonce, &nonce_uint)) {
       tx.nonce_ = nonce_uint;
     }
   }
 
-  tx.to_ = FilAddress::FromString(tx_data->to);
-  if (!HexValueToUint256(tx_data->value, &tx.value_))
+  tx.to_ = FilAddress::FromString(tx_data->base_data->to);
+  if (!HexValueToUint256(tx_data->base_data->value, &tx.value_))
     return absl::nullopt;
+  tx.data_ = tx_data->base_data->data;
   return tx;
 }
 
@@ -103,6 +109,36 @@ absl::optional<FilTransaction> FilTransaction::FromValue(
     return absl::nullopt;
   if (!HexValueToUint256(*tx_value, &tx.value_))
     return absl::nullopt;
+
+  const std::string* data = value.FindStringKey("data");
+  if (!data)
+    return absl::nullopt;
+  std::string data_decoded;
+  if (!base::Base64Decode(*data, &data_decoded))
+    return absl::nullopt;
+  tx.data_ = std::vector<uint8_t>(data_decoded.begin(), data_decoded.end());
+
+  absl::optional<int> v = value.FindIntKey("v");
+  if (!v)
+    return absl::nullopt;
+  tx.v_ = (uint8_t)*v;
+
+  const std::string* r = value.FindStringKey("r");
+  if (!r)
+    return absl::nullopt;
+  std::string r_decoded;
+  if (!base::Base64Decode(*r, &r_decoded))
+    return absl::nullopt;
+  tx.r_ = std::vector<uint8_t>(r_decoded.begin(), r_decoded.end());
+
+  const std::string* s = value.FindStringKey("s");
+  if (!s)
+    return absl::nullopt;
+  std::string s_decoded;
+  if (!base::Base64Decode(*s, &s_decoded))
+    return absl::nullopt;
+  tx.s_ = std::vector<uint8_t>(s_decoded.begin(), s_decoded.end());
+
   return tx;
 }
 

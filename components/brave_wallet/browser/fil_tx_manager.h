@@ -18,6 +18,7 @@ namespace brave_wallet {
 class TxService;
 class JsonRpcService;
 class KeyringService;
+class FilTransaction;
 
 class FilTxManager : public TxManager, public FilTxStateManager::Observer {
  public:
@@ -48,8 +49,6 @@ class FilTxManager : public TxManager, public FilTxStateManager::Observer {
       GetTransactionMessageToSignCallback callback) override;
 
   void Reset() override;
-  std::unique_ptr<FilTxStateManager::TxMeta> GetTxForTesting(
-      const std::string& tx_meta_id);
   void OnGetNetworkNonce(const std::string& from,
                          const std::string& to,
                          const std::string& value,
@@ -58,10 +57,11 @@ class FilTxManager : public TxManager, public FilTxStateManager::Observer {
                          uint256_t network_nonce,
                          mojom::ProviderError error,
                          const std::string& error_message);
+  std::unique_ptr<FilTxMeta> GetTxForTesting(const std::string& tx_meta_id);
 
  private:
   friend class FilTxManagerUnitTest;
-  static bool ValidateTxData(const mojom::FilTxDataPtr& tx_data,
+  static bool ValidateTxData(const mojom::TxDataPtr& tx_data,
                              std::string* error);
   void AddUnapprovedTransaction(mojom::FilTxDataPtr tx_data,
                                 const std::string& from,

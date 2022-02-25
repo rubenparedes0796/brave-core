@@ -36,12 +36,17 @@ class FilTransaction {
   uint256_t gas_limit() const { return gas_limit_; }
   FilAddress to() const { return to_; }
   uint256_t value() const { return value_; }
+  std::vector<uint8_t> data() const { return data_; }
+  uint256_t v() const { return v_; }
+  std::vector<uint8_t> r() const { return r_; }
+  std::vector<uint8_t> s() const { return s_; }
 
   void set_to(FilAddress to) { to_ = to; }
   void set_value(uint256_t value) { value_ = value; }
   void set_nonce(absl::optional<uint256_t> nonce) { nonce_ = nonce; }
   void set_gas_price(uint256_t gas_price) { gas_price_ = gas_price; }
   void set_gas_limit(uint256_t gas_limit) { gas_limit_ = gas_limit; }
+  void set_data(const std::vector<uint8_t>& data) { data_ = data; }
 
   virtual base::Value ToValue() const;
   static absl::optional<FilTransaction> FromValue(const base::Value& value);
@@ -52,13 +57,19 @@ class FilTransaction {
   uint256_t gas_limit_;
   FilAddress to_;
   uint256_t value_;
+  std::vector<uint8_t> data_;
+
+  uint256_t v_ = 0;
+  std::vector<uint8_t> r_;
+  std::vector<uint8_t> s_;
 
  protected:
   FilTransaction(absl::optional<uint256_t> nonce,
                  uint256_t gas_price,
                  uint256_t gas_limit,
                  const FilAddress& to,
-                 uint256_t value);
+                 uint256_t value,
+                 const std::vector<uint8_t>& data);
 };
 
 }  // namespace brave_wallet
