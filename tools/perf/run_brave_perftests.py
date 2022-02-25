@@ -27,24 +27,26 @@ import json
 import sys
 import logging
 import shutil
+import re
 from StringIO import StringIO
 from zipfile import ZipFile
-from urllib import urlopen, urlretrieve
+from urllib2 import urlopen
 from distutils.dir_util import copy_tree
 import argparse
 
 src_dir = os.path.abspath(
     os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
 
-test_config_file_path = os.path.join(src_dir, 'brave', 'tools', 'perf',
-                                     'perftest_config.json')
+perf_path = os.path.join(src_dir, 'brave', 'tools', 'perf')
+
+test_config_file_path = os.path.join(perf_path, 'perftest_config.json')
+
 json_config = {}
 with open(test_config_file_path, 'r') as config_file:
   json_config = json.load(config_file)
 
 # Workaround to add our wpr files
-page_set_data_dir = os.path.join(src_dir, 'brave', 'tools', 'perf',
-                                 'page_sets_data')
+page_set_data_dir = os.path.join(perf_path, 'page_sets_data')
 chromium_page_set_data_dir = os.path.join(src_dir, 'tools', 'perf', 'page_sets',
                                           'data')
 for item in os.listdir(page_set_data_dir):
@@ -69,15 +71,18 @@ def GetRevisionNumberAndHash(revision):
   return [rev_number, hash]
 
 
-def RunTest(binary, config, out_dir, extra_args=[]):
+def RunTest(binary, config, out_dir, is_ref, extra_args=[]):
   args = [
       sys.executable,
       os.path.join(src_dir, 'testing', 'scripts', 'run_performance_tests.py'),
       os.path.join(src_dir, 'tools', 'perf', 'run_benchmark')
   ]
-  args.append('--benchmarks=%s' % config['benchmark'])
+  benchmark = config['benchmark']
+  if is_ref:
+    benchmark += '.reference'
+  args.append('--benchmarks=%s' % benchmark)
   args.append('--browser=exact')
-  args.append('--browser-executable=' + binary + '')
+  args.append('--browser-executable=%s' % binary)
   args.append('--isolated-script-test-output=%s' % out_dir + '\\' +
               config['benchmark'] + '\\output.json')
   args.append('--pageset-repeat=%d' % config['pageset_repeat'])
@@ -98,46 +103,112 @@ def GetBraveUrl(tag, platform):
   return BRAVE_URL % (tag, tag, platform)
 
 
-def DownloadAndUnpackBinary(output_directory, url):
+def ParseVersion(version_string):
+  return map(int, version_string.split("."))
+
+
+def GetNearestChromiumVersionAndUrl(tag):
+  chrome_versions = {}
+  with open(os.path.join(perf_path, 'chrome_releases.json'),
+            'r') as config_file:
+    chrome_versions = json.load(config_file)
+
+  subprocess.check_call(['git', 'fetch', 'origin', r'refs/tags/*:refs/tags/*'],
+                        cwd=os.path.join(src_dir, 'brave'))
+  package_json = json.loads(
+      subprocess.check_output(
+          ['git', 'show', '%s:package.json' % tag],
+          cwd=os.path.join(src_dir, 'brave')))
+  requested_version = package_json['config']['projects']['chrome']['tag']
+
+  parsed_requested_version = ParseVersion(requested_version)
+  best_candidate = None
+  for version in chrome_versions:
+    parsed_version = ParseVersion(version)
+    if parsed_version[0] == parsed_requested_version[
+        0] and parsed_version >= parsed_requested_version:
+      if not best_candidate or best_candidate > parsed_version:
+        best_candidate = parsed_version
+
+  if best_candidate:
+    string_version = '.'.join(map(str, best_candidate))
+    logging.info("Use chromium version %s for requested %s " %
+                 (best_candidate, requested_version))
+    return string_version, chrome_versions[string_version]['url']
+
+  logging.error("No chromium version found for %s" % requested_version)
+  return None, None
+
+def DownloadArchiveAndUnpack(output_directory, url):
   resp = urlopen(url)
   zipfile = ZipFile(StringIO(resp.read()))
   zipfile.extractall(output_directory)
   return os.path.join(output_directory, 'brave.exe')
 
-def DownloadInstallAndCopy(output_directory, tag):
+
+def DownloadWinInstallerAndExtract(out_dir, url, expected_install_path, binary):
   if not os.path.exists(out_dir):
     os.makedirs(out_dir)
-  url = BRAVE_WIN_INSTALLER_URL % tag
-  installer_filename = os.path.join(out_dir, os.pardir, 'installer_%s_tag.exe' % tag)
-  urlretrieve(url, installer_filename)
-  subprocess.check_call(['start', '/b', '/wait', installer_filename],shell=True)
+  installer_filename = os.path.join(out_dir, os.pardir, 'temp_installer.exe')
+  logging.info('Downloading %s' % url)
+  f = urlopen(url)
+  data = f.read()
+  with open(installer_filename, "wb") as output_file:
+    output_file.write(data)
+  logging.info('Run installer %s' % installer_filename)
+  subprocess.check_call([installer_filename, '--chrome-sxs'])
   try:
-    subprocess.check_call(['taskkill.exe', '/f', '/im', 'brave.exe'])
+    subprocess.check_call(['taskkill.exe', '/f', '/im', binary])
   except subprocess.CalledProcessError:
-    logging.info('no brave.exe to kill')
+    logging.info('failed to kill %s' % binary)
 
+  if not os.path.exists(expected_install_path):
+    raise RuntimeError('No files found in %s' % expected_install_path)
+
+  full_version = None
+  logging.info('Copy files to %s' % out_dir)
+  copy_tree(expected_install_path, out_dir)
+  for file in os.listdir(expected_install_path):
+    #TODO: check brave tag? file.endswith(tag[2:])
+    if re.search("\d.\d.\d.\d", file):
+      assert (full_version == None)
+      full_version = file
+  assert (full_version != None)
+  logging.info('Detected version %s' % full_version)
+  setup_filename = os.path.join(expected_install_path, full_version,
+                                'Installer', 'setup.exe')
+  logging.info('Run uninstall %s' % setup_filename)
+  try:
+    subprocess.check_call(
+        [setup_filename, '--uninstall', '--force-uninstall', '--chrome-sxs'])
+  except subprocess.CalledProcessError:
+    logging.info('setup.exe returns non-zero code.')
+
+  shutil.rmtree(expected_install_path, True)
+  return os.path.join(out_dir, binary)
+
+
+def DownloadBraveWinInstallerAndExtract(out_dir, tag):
   install_path = os.path.join(os.path.expanduser("~"), 'AppData', 'Local',
                               'BraveSoftware', 'Brave-Browser-Nightly',
                               'Application')
-  full_version = None
-  copy_tree(install_path, output_directory)
-  for file in os.listdir(install_path):
-    print (file, tag[2:])
-    if file.endswith(tag[2:]):
-      assert(full_version == None)
-      full_version = file
-  assert(full_version != None)
-  setup_filename = os.path.join(install_path, full_version, 'Installer',
-                                'setup.exe')
-  subprocess.check_call([
-      'start', '/b', '/wait', setup_filename, '--uninstall',
-      '--force-uninstall', '--chrome-sxs'
-  ],
-                        shell=True)
-  shutil.rmtree(install_path, True)
-  return os.path.join(out_dir, 'brave.exe')
+  url = BRAVE_WIN_INSTALLER_URL % tag
+  return DownloadWinInstallerAndExtract(out_dir, url, install_path, 'brave.exe')
 
-def ReportToDashboard(product, configuration_name, revision, output_dir):
+
+def DownloadChromeWinInstallerAndExtract(out_dir, tag):
+  [chromium_version, url] = GetNearestChromiumVersionAndUrl(tag)
+  if not url:
+    raise RuntimeError("Fail to find nearest chromium binary for %s" % tag)
+
+  install_path = os.path.join(os.path.expanduser("~"), 'AppData', 'Local',
+                              'Google', 'Chrome SxS', 'Application')
+  return DownloadWinInstallerAndExtract(out_dir, url, install_path,
+                                        'chrome.exe')
+
+
+def ReportToDashboard(product, is_ref, configuration_name, revision,
+                      output_dir):
   args = [
       sys.executable,
       os.path.join(src_dir, 'tools', 'perf', 'process_perf_results.py')
@@ -152,7 +223,8 @@ def ReportToDashboard(product, configuration_name, revision, output_dir):
   if product == 'brave':
     build_properties['builder_group'] = 'brave.perf'
   elif product == 'chromium':
-    build_properties['builder_group'] = 'chromium.perf'
+    build_properties[
+        'builder_group'] = 'brave.perf' if is_ref else 'chromium.perf'
   else:
     raise RuntimeError('bad product name ' + product)
 
@@ -172,18 +244,14 @@ def ReportToDashboard(product, configuration_name, revision, output_dir):
   subprocess.check_call(args)
 
 
-def TestBinary(product,
-               revision,
-               binary,
-               output_dir,
-               args):
+def TestBinary(product, revision, binary, output_dir, is_ref, args):
   failedLogs = []
   has_failure = False
   for test_config in json_config['tests']:
     benchmark = test_config['benchmark']
     if not args.report_only:
       try:
-        RunTest(binary, test_config, output_dir, args.extra_args)
+        RunTest(binary, test_config, output_dir, is_ref, args.extra_args)
       except subprocess.CalledProcessError:
         has_failure = True
         error = 'Test case %s failed on revision %s' % (benchmark, revision)
@@ -199,7 +267,8 @@ def TestBinary(product,
     elif args.skip_report:
       logging.info('skip reporting because report==False')
     else:
-      ReportToDashboard(product, args.configuration_name, revision, output_dir)
+      ReportToDashboard(product, is_ref, args.configuration_name, revision,
+                        output_dir)
 
   except subprocess.CalledProcessError:
     has_failure = True
@@ -221,41 +290,48 @@ parser.add_argument('--work_directory', required=True, type=str)
 parser.add_argument('--configuration_name', required=True, type=str)
 parser.add_argument('--platform', required=True, type=str)
 parser.add_argument('--use_win_installer', action='store_true')
+parser.add_argument('--chromium', action='store_true')
 parser.add_argument('--extra_args', action='append', default=[])
 parser.add_argument('--overwrite_results', action='store_true')
 parser.add_argument('--skip_report', action='store_true')
 parser.add_argument('--report_only', action='store_true')
 parser.add_argument('--report_on_failure', action='store_true')
+parser.add_argument('--verbose', action='store_true')
 args = parser.parse_args()
+
+log_level = logging.DEBUG if args.verbose else logging.INFO
+log_format = '%(asctime)s - %(levelname)s - %(funcName)s: %(message)s'
+logging.basicConfig(level=log_level, format=log_format)
 
 for tag in args.tags:
   url = GetBraveUrl(tag, args.platform)
   out_dir = os.path.join(args.work_directory, tag)
 
   binary_path = None
-  if not args.report_only:
-    if args.use_win_installer:
-      binary_path = DownloadInstallAndCopy(out_dir, tag)
-    else:
-      binary_path = DownloadAndUnpackBinary(out_dir, url)
+  product = 'chromium' if args.chromium else 'brave'
+  is_ref = args.chromium
 
+  if not args.report_only:
+    if args.chromium:
+      binary_path = DownloadChromeWinInstallerAndExtract(out_dir, tag)
+    elif args.use_win_installer:
+      binary_path = DownloadBraveWinInstallerAndExtract(out_dir, tag)
+    else:
+      binary_path = DownloadArchiveAndUnpack(out_dir, url)
 
   if args.overwrite_results and not args.report_only:
     shutil.rmtree(os.path.join(out_dir, 'results'), True)
 
   [binary_success,
-   binary_logs] = TestBinary('brave',
-                             'refs/tags/' + tag,
-                             binary_path,
-                             os.path.join(out_dir, 'results'),
-                             args)
+   binary_logs] = TestBinary(product, 'refs/tags/' + tag, binary_path,
+                             os.path.join(out_dir, 'results'), is_ref, args)
   if not binary_success:
     has_failure = True
     failedLogs.extend(binary_logs)
 
-print('\n\nSummary:\n')
+logging.info('\nSummary:\n')
 if has_failure:
-  print('\n'.join(failedLogs))
-  print('Got %d errors!' % len(failedLogs))
+  logging.error('\n'.join(failedLogs))
+  logging.error('Got %d errors!' % len(failedLogs))
 else:
-  print('OK')
+  logging.info('OK')

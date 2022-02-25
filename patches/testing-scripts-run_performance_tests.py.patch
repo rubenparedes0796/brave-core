@@ -1,0 +1,20 @@
+diff --git a/testing/scripts/run_performance_tests.py b/testing/scripts/run_performance_tests.py
+index b687be82db85a242fbdf68bc325a86f70ac8dad8..1b38759a2cfc226d0a4864ee4f25182ce812470f 100755
+--- a/testing/scripts/run_performance_tests.py
++++ b/testing/scripts/run_performance_tests.py
+@@ -39,6 +39,7 @@ from __future__ import print_function
+ 
+ import argparse
+ import json
++import logging
+ import os
+ import requests
+ import shutil
+@@ -697,6 +698,7 @@ def main(sys_args):
+       benchmarks = options.benchmarks.split(',')
+       for benchmark in benchmarks:
+         output_paths = OutputFilePaths(isolated_out_dir, benchmark).SetUp()
++        benchmark = benchmark.replace('.reference', '')
+         command_generator = TelemetryCommandGenerator(
+             benchmark, options)
+         print('\n### {folder} ###'.format(folder=benchmark))
