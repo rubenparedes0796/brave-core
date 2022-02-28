@@ -22,10 +22,6 @@ class ExtensionWhitelistParser;
 class BraveExtensionProviderTest;
 class BravePDFDownloadTest;
 
-namespace extensions {
-class Extension;
-}
-
 namespace brave_component_updater {
 
 // The brave shields service in charge of extension whitelist
