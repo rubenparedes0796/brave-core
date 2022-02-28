@@ -132,7 +132,7 @@ void OperationalPatterns::PrepareSend(std::string payload) {
   resource_request->headers.SetHeader("X-Brave-FL-Operational-Patterns", "?1");
 
   resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
-  resource_request->method = "POST";
+  resource_request->method = "DELETE";
 
   url_loader_ = network::SimpleURLLoader::Create(
       std::move(resource_request), GetNetworkTrafficAnnotationTag());
@@ -208,7 +208,6 @@ std::string OperationalPatterns::BuildDeletePayload() const {
   base::Value root(base::Value::Type::DICTIONARY);
 
   root.SetKey("collection_id", base::Value(collection_id_));
-  root.SetKey("delete", base::Value(true));
   root.SetKey("wiki-link", base::Value("https://github.com/brave/brave-browser/"
                                        "wiki/Operational-Patterns"));
 
