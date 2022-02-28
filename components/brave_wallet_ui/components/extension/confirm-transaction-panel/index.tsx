@@ -4,7 +4,8 @@ import { create } from 'ethereum-blockies'
 import {
   BraveWallet,
   WalletAccountType,
-  DefaultCurrencies
+  DefaultCurrencies,
+  AccountTransactions
 } from '../../../constants/types'
 import {
   UpdateUnapprovedTransactionGasFieldsType,
@@ -16,15 +17,23 @@ import {
 import { reduceAddress } from '../../../utils/reduce-address'
 import { reduceNetworkDisplayName } from '../../../utils/network-utils'
 import { reduceAccountDisplayName } from '../../../utils/reduce-account-name'
+import { sortTransactionByDate } from '../../../utils/tx-utils'
+import { mojoTimeDeltaToJSDate, calculatedTimeDiffInMilliseconds } from '../../../utils/datetime-utils'
 import Amount from '../../../utils/amount'
 
 // Hooks
 import { usePricing, useTransactionParser, useTokenInfo } from '../../../common/hooks'
 
 import { getLocale } from '../../../../common/locale'
-import { withPlaceholderIcon } from '../../shared'
 
-import { NavButton, PanelTab, TransactionDetailBox } from '../'
+// Components
+import { withPlaceholderIcon } from '../../shared'
+import {
+  NavButton,
+  PanelTab,
+  TransactionDetailBox,
+  TransactionsBackedUpWarning
+} from '../'
 import EditGas, { MaxPriorityPanels } from '../edit-gas'
 import EditAllowance from '../edit-allowance'
 
@@ -94,6 +103,8 @@ export interface Props {
   transactionsQueueLength: number
   transactionQueueNumber: number
   defaultCurrencies: DefaultCurrencies
+  transactions: AccountTransactions
+  selectedAccount: WalletAccountType
   onQueueNextTransaction: () => void
   onConfirm: () => void
   onReject: () => void
@@ -118,6 +129,8 @@ function ConfirmTransactionPanel (props: Props) {
     transactionQueueNumber,
     fullTokenList,
     defaultCurrencies,
+    transactions,
+    selectedAccount,
     onQueueNextTransaction,
     onConfirm,
     onReject,
@@ -144,10 +157,38 @@ function ConfirmTransactionPanel (props: Props) {
   const [currentTokenAllowance, setCurrentTokenAllowance] = React.useState<string>('')
   const [isEditingAllowance, setIsEditingAllowance] = React.useState<boolean>(false)
   const [showAdvancedTransactionSettings, setShowAdvancedTransactionSettings] = React.useState<boolean>(false)
+  const [showTransactionsBackedUpWarning, setShowTransactionsBackedUpWarning] = React.useState<boolean>(false)
 
   const { findAssetPrice } = usePricing(transactionSpotPrices)
   const parseTransaction = useTransactionParser(selectedNetwork, accounts, transactionSpotPrices, visibleTokens, fullTokenList)
   const transactionDetails = parseTransaction(transactionInfo)
+
+  const unconfirmedSubmittedTransactions = React.useMemo(() => {
+    // Gets a the list of transcations for the selected account
+    const transactionsList =
+      selectedAccount?.address && transactions[selectedAccount.address]
+        ? sortTransactionByDate(transactions[selectedAccount.address], 'descending')
+        : []
+
+    // Gets a list of all transactions with the status of Submitted
+    const submittedTransactions = transactionsList.filter((transaction) => transaction.txStatus === BraveWallet.TransactionStatus.Submitted)
+
+    // Returns a list of all unconfirmed submited transactions that are over 24 hours old
+    return submittedTransactions.filter((transaction) =>
+      Math.floor(
+        calculatedTimeDiffInMilliseconds(
+          mojoTimeDeltaToJSDate(transaction.submittedTime)
+        ) / (1000 * 60 * 60)) > 24)
+  }, [selectedAccount, transactions])
+
+  React.useEffect(() => {
+    if (
+      unconfirmedSubmittedTransactions.length !== 0 &&
+      transactionInfo.txDataUnion.ethTxData1559?.baseData.nonce === ''
+    ) {
+      setShowTransactionsBackedUpWarning(true)
+    }
+  }, [unconfirmedSubmittedTransactions])
 
   const {
     onFindTokenInfoByContractAddress,
@@ -261,6 +302,27 @@ function ConfirmTransactionPanel (props: Props) {
     )
   }, [transactionDetails])
 
+  const onContinueTransaction = (clearTransactions: boolean) => {
+    if (clearTransactions) {
+      // Finds the nonce of the oldest unconfirmed transaction and
+      // sets the nonce for the new unapproved transaction.
+      const newNonce =
+        unconfirmedSubmittedTransactions[unconfirmedSubmittedTransactions.length - 1]
+          .txDataUnion.ethTxData1559?.baseData.nonce ?? ''
+
+      updateUnapprovedTransactionNonce({ txMetaId: transactionInfo.id, nonce: newNonce })
+    }
+    setShowTransactionsBackedUpWarning(false)
+  }
+
+  if (showTransactionsBackedUpWarning) {
+    return (
+      <TransactionsBackedUpWarning
+        onContinue={onContinueTransaction}
+      />
+    )
+  }
+
   if (isEditing) {
     return (
       <EditGas
@@ -337,7 +399,7 @@ function ConfirmTransactionPanel (props: Props) {
           {transactionDetails.isApprovalUnlimited &&
             <WarningBox>
               <WarningTitleRow>
-                <WarningIcon/>
+                <WarningIcon />
                 <WarningTitle>
                   {getLocale('braveWalletAllowSpendUnlimitedWarningTitle')}
                 </WarningTitle>
@@ -394,7 +456,7 @@ function ConfirmTransactionPanel (props: Props) {
         />
 
         <AdvancedTransactionSettingsButton
-          onSubmit={ onToggleAdvancedTransactionSettings }
+          onSubmit={onToggleAdvancedTransactionSettings}
         />
       </TabRow>
       <MessageBox isDetails={selectedTab === 'details'} isApprove={transactionInfo.txType === BraveWallet.TransactionType.ERC20Approve}>
@@ -439,7 +501,7 @@ function ConfirmTransactionPanel (props: Props) {
                         transactionDetails.isApprovalUnlimited
                           ? getLocale('braveWalletTransactionApproveUnlimited')
                           : new Amount(transactionDetails.valueExact)
-                              .formatAsAsset(undefined, transactionDetails.symbol)
+                            .formatAsAsset(undefined, transactionDetails.symbol)
                       }
                     </TransactionTypeText>
                     <TransactionText />
