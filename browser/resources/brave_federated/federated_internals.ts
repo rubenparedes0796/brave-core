@@ -1,27 +1,24 @@
-import {addWebUIListener} from 'chrome://resources/js/cr.m.js';
+import {$} from 'chrome://resources/js/util.m.js';
 import {decorate} from 'chrome://resources/js/cr/ui.m.js';
 import {TabBox} from 'chrome://resources/js/cr/ui/tabs.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.m.js';
 
-import {$} from 'chrome://resources/js/util.m.js';
-
-import {AdStoreLog} from './segmentation_internals.mojom-webui.js';
-import {FederatedInternalsBrowserProxy} from './segmentation_internals_browser_proxy.js';
+import {AdStoreLog} from './federated_internals.mojom-webui.js';
+import {FederatedInternalsBrowserProxy} from './federated_internals_browser_proxy.js';
 
 function getProxy(): FederatedInternalsBrowserProxy {
   return FederatedInternalsBrowserProxy.getInstance();
 }
 
-const dataStoresLogs = {};
-let selectedDataStore = "ad-timing";
+const dataStoresLogs: {[Key: string]: Array<AdStoreLog>} = {};
+let selectedDataStore: string = "ad-timing";
 
 function initialize() {
   decorate('tabbox', TabBox);
 
   getProxy().getAdStoreInfo();
   
-  getProxy().getCallbackRouter().onAdsTimingDataStoreLogsLoaded.addListener(
-    (ad_store_logs: Array<AdStoreLog>) => {
+  getProxy().getCallbackRouter().onAdStoreInfoAvailable.addListener(
+    (logs: Array<AdStoreLog>) => {
       dataStoresLogs['ad-timing'] = logs;
       onDataStoreChanged();
   });
@@ -38,9 +35,9 @@ function initialize() {
   const tabNodeList = document.getElementsByTagName('tab');
   const tabs = Array.prototype.slice.call(tabNodeList, 0);
   tabs.forEach(function(tab) {
-    tab.onclick = function(e) {
+    tab.onclick = function() {
       const tabbox = document.querySelector('tabbox');
-      const tabpanel = tabpanels[tabbox.selectedIndex];
+      const tabpanel = tabpanels[tabbox!.selectedIndex];
       const hash = tabpanel.id.match(/(?:^tabpanel-)(.+)/)[1];
       window.location.hash = hash;
     };
@@ -66,11 +63,11 @@ function initialize() {
 }
 
 function onDataStoreChanged() {
-    selectedDataStore = $('stores').value;
-    const logs = dataStoresLogs[selectedDataStore]; 
+    selectedDataStore = $('stores').selected;
+    const logs: Array<AdStoreLog> = dataStoresLogs[selectedDataStore]!; 
 
     if (selectedDataStore == 'ad-timing') {
-        Object.keys(logs[0]).forEach(function(title) {
+        Object.keys(logs[0]!).forEach(function(title) {
             const th = document.createElement('th');
             th.textContent = title;
             th.className = 'ad-timing-log-'+ title;
@@ -79,39 +76,39 @@ function onDataStoreChanged() {
             thead.appendChild(th);
         });
     
-      logs.forEach(function(log) {
+      logs?.forEach(function(log: AdStoreLog) {
         const tr = document.createElement('tr');
-        appendTD(tr, log.log_id, 'ad-timing-log-id');
-        appendTD(tr, formatDate(new Date(log.log_time)), 'ad-timing-log-time');
-        appendTD(tr, log.log_locale, 'ad-timing-log-locale');
-        appendTD(tr, log.log_number_of_tabs, 'ad-timing-log-number_of_tabs');
-        appendBooleanTD(tr, log.log_label, 'ad-timing-log-label');
+        appendTD(tr, log.logId, 'ad-timing-log-id');
+        appendTD(tr, formatDate(new Date(log.logTime)), 'ad-timing-log-time');
+        appendTD(tr, log.logLocale, 'ad-timing-log-locale');
+        appendTD(tr, log.logNumberOfTabs, 'ad-timing-log-number_of_tabs');
+        appendBooleanTD(tr, log.logLabel, 'ad-timing-log-label');
     
         const tabpanel = $('tabpanel-data-store-logs');
         const tbody = tabpanel.getElementsByTagName('tbody')[0];
-        tbody.appendChild(tr);
+        tbody!.appendChild(tr);
       });
     }
 }
 
 // COSMETICS
 
- function appendTD(parent, content, className) {
+ function appendTD(parent: Node, content: string | number, className: string) {
   const td = document.createElement('td');
-  td.textContent = content;
+  td.textContent = typeof(content) === "number" ? content.toString() : content;
   td.className = className;
   parent.appendChild(td);
 }
 
-function appendBooleanTD(parent, value, className) {
+function appendBooleanTD(parent: Node, value: boolean, className: string) {
   const td = document.createElement('td');
-  td.textContent = value;
+  td.textContent = value ? "True" : "False";
   td.className = className;
   td.bgColor = value ? '#3cba54' : '#db3236';
   parent.appendChild(td);
 }
 
-function padWithZeros(number, width) {
+function padWithZeros(number: number, width: number) {
   const numberStr = number.toString();
   const restWidth = width - numberStr.length;
   if (restWidth <= 0) {
@@ -121,7 +118,7 @@ function padWithZeros(number, width) {
   return Array(restWidth + 1).join('0') + numberStr;
 }
 
-function formatDate(date) {
+function formatDate(date: Date) {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
   const day = date.getDate();
@@ -154,7 +151,7 @@ function onLogsDump() {
   
     const event = document.createEvent('MouseEvent');
     event.initMouseEvent(
-        'click', true, true, window, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null);
+        'click', true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
     a.dispatchEvent(event);
   }
 
