@@ -71,6 +71,7 @@ class SQLStore : public BATLedgerContext::Object {
   static const char kContextKey[];
 
   using CommandFuture = Future<SQLReader>;
+  using CommandList = std::vector<mojom::DBCommandPtr>;
 
   // Opens the database and returns the current database version number.
   CommandFuture Open(int current_version);
@@ -88,11 +89,19 @@ class SQLStore : public BATLedgerContext::Object {
   // Clears free space in the database.
   CommandFuture Vacuum();
 
-  // Runs a list of commands as a transaction against the database
-  CommandFuture RunTransaction(std::vector<mojom::DBCommandPtr> commands);
-
   // Runs a command against the database.
   CommandFuture RunTransaction(mojom::DBCommandPtr command);
+
+  // Runs a list of commands against the database.
+  CommandFuture RunTransaction(CommandList&& commands);
+
+  // Runs a series of commands as a transaction against the database.
+  template <typename... Args>
+  CommandFuture RunTransaction(Args&&... args) {
+    auto transaction = mojom::DBTransaction::New();
+    (transaction->commands.push_back(std::forward<Args>(args)), ...);
+    return RunTransactionImpl(std::move(transaction));
+  }
 
   // Executes SQL code against the database, using a series of values as command
   // bindings.
@@ -172,30 +181,23 @@ class SQLStore : public BATLedgerContext::Object {
   template <typename... Args>
   static std::vector<mojom::DBCommandBindingPtr> BindValues(Args&&... args) {
     std::vector<mojom::DBCommandBindingPtr> bindings;
-    AddBindings(&bindings, std::forward<Args>(args)...);
+    (AddBinding(&bindings, std::forward<Args>(args)), ...);
     return bindings;
   }
 
   template <typename T>
-  static void AddBindings(T* bindings) {}
-
-  template <typename T, typename U, typename... Args>
-  static void AddBindings(T* bindings, const U& value, Args&&... args) {
-    AddBinding(bindings, value);
-    AddBindings(bindings, std::forward<Args>(args)...);
-  }
-
-  template <typename T, typename U>
-  static void AddBinding(T* bindings, const U& value) {
+  static void AddBinding(std::vector<mojom::DBCommandBindingPtr>* bindings,
+                         const T& value) {
     auto binding = mojom::DBCommandBinding::New();
     binding->index = bindings->size();
     binding->value = Bind(value);
     bindings->push_back(std::move(binding));
   }
 
-  template <typename T, typename U>
-  static void AddBinding(T* bindings, const std::vector<U>& values) {
-    for (const U& value : values) {
+  template <typename T>
+  static void AddBinding(std::vector<mojom::DBCommandBindingPtr>* bindings,
+                         const std::vector<T>& values) {
+    for (const T& value : values) {
       AddBinding(bindings, value);
     }
   }

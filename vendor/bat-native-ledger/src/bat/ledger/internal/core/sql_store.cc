@@ -252,8 +252,7 @@ SQLStore::CommandFuture SQLStore::Vacuum() {
   return RunTransaction(std::move(command));
 }
 
-SQLStore::CommandFuture SQLStore::RunTransaction(
-    std::vector<mojom::DBCommandPtr> commands) {
+SQLStore::CommandFuture SQLStore::RunTransaction(CommandList&& commands) {
   auto transaction = mojom::DBTransaction::New();
   transaction->commands = std::move(commands);
   return RunTransactionImpl(std::move(transaction));

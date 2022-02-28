@@ -63,29 +63,26 @@ absl::optional<PublisherActivity> PublisherActivity::FromValue(
   return r.Finish();
 }
 
-ContributionRequest::ContributionRequest() = default;
+Contribution::Contribution() = default;
 
-ContributionRequest::ContributionRequest(ContributionType contribution_type,
-                                         const std::string& publisher_id,
-                                         ContributionSource source,
-                                         double amount)
+Contribution::Contribution(ContributionType contribution_type,
+                           const std::string& publisher_id,
+                           ContributionSource source,
+                           double amount)
     : id(base::GUID::GenerateRandomV4().AsLowercaseString()),
       type(contribution_type),
       publisher_id(publisher_id),
       amount(amount),
       source(source) {}
 
-ContributionRequest::~ContributionRequest() = default;
+Contribution::~Contribution() = default;
 
-ContributionRequest::ContributionRequest(const ContributionRequest& other) =
-    default;
+Contribution::Contribution(const Contribution& other) = default;
 
-ContributionRequest& ContributionRequest::operator=(
-    const ContributionRequest& other) = default;
+Contribution& Contribution::operator=(const Contribution& other) = default;
 
-ContributionRequest::ContributionRequest(ContributionRequest&& other) = default;
+Contribution::Contribution(Contribution&& other) = default;
 
-ContributionRequest& ContributionRequest::operator=(
-    ContributionRequest&& other) = default;
+Contribution& Contribution::operator=(Contribution&& other) = default;
 
 }  // namespace ledger

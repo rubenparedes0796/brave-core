@@ -13,9 +13,9 @@
 #include "bat/ledger/internal/contribution/contribution_store.h"
 #include "bat/ledger/internal/core/bat_ledger_job.h"
 #include "bat/ledger/internal/credentials/credentials_redeem.h"
-#include "bat/ledger/internal/endpoint/payment/payment_server.h"
 #include "bat/ledger/internal/endpoint/promotion/promotion_server.h"
 #include "bat/ledger/internal/ledger_impl.h"
+#include "bat/ledger/internal/payments/payment_service.h"
 
 namespace ledger {
 
@@ -32,13 +32,9 @@ mojom::RewardsType ContributionTypeToRewardsType(ContributionType type) {
   }
 }
 
-struct ProcessState {
-  ContributionRequest contribution;
-};
-
 class ProcessJob : public BATLedgerJob<bool> {
  public:
-  void Start(const ContributionRequest& contribution) {
+  void Start(const Contribution& contribution) {
     DCHECK(!contribution.id.empty());
     DCHECK_GT(contribution.amount, 0.0);
 
@@ -50,7 +46,7 @@ class ProcessJob : public BATLedgerJob<bool> {
         .Then(ContinueWith(this, &ProcessJob::OnTokensReserved));
   }
 
-  void Start(const ContributionRequest& contribution,
+  void Start(const Contribution& contribution,
              ContributionTokenManager::Hold hold) {
     DCHECK(!contribution.id.empty());
     contribution_ = contribution;
@@ -61,17 +57,7 @@ class ProcessJob : public BATLedgerJob<bool> {
   void OnTokensReserved(ContributionTokenHold hold) {
     hold_ = std::move(hold);
 
-    double total_value = 0;
-    std::vector<mojom::UnblindedToken> ut_list;
-    for (auto& token : hold_.tokens()) {
-      total_value += token.value;
-      mojom::UnblindedToken ut;
-      ut.id = token.id;
-      ut.token_value = token.unblinded_token;
-      ut.public_key = token.public_key;
-      ut_list.push_back(std::move(ut));
-    }
-
+    double total_value = hold_.GetTotalValue();
     if (total_value < contribution_.amount) {
       context().LogError(FROM_HERE)
           << "Insufficient tokens reserved for contribution";
@@ -83,32 +69,62 @@ class ProcessJob : public BATLedgerJob<bool> {
     // the value of the tokens being sent.
     contribution_.amount = total_value;
 
+    if (GetContributionTokenType() == ContributionTokenType::kSKU) {
+      RedeemVotes();
+    } else {
+      RedeemGrantTokens();
+    }
+  }
+
+  void RedeemVotes() {
+    std::vector<PaymentVote> votes;
+
+    // TODO(zenparsing): It's odd that we have to make copies here. The problem
+    // is that there is currently a knowledge boundary between payments and
+    // contributions.
+    for (auto& token : hold_.tokens()) {
+      votes.push_back(PaymentVote{.unblinded_token = token.unblinded_token,
+                                  .public_key = token.public_key});
+    }
+
+    context()
+        .Get<PaymentService>()
+        .PostPublisherVotes(contribution_.publisher_id, GetVoteType(),
+                            std::move(votes))
+        .Then(ContinueWith(this, &ProcessJob::OnContributionProcessed));
+  }
+
+  void RedeemGrantTokens() {
+    std::vector<mojom::UnblindedToken> ut_list;
+    for (auto& token : hold_.tokens()) {
+      mojom::UnblindedToken ut;
+      ut.id = token.id;
+      ut.token_value = token.unblinded_token;
+      ut.public_key = token.public_key;
+      ut_list.push_back(std::move(ut));
+    }
+
     credential::CredentialsRedeem redeem;
     redeem.publisher_key = contribution_.publisher_id;
     redeem.type = ContributionTypeToRewardsType(contribution_.type);
     redeem.processor = mojom::ContributionProcessor::NONE;
     redeem.token_list = std::move(ut_list);
-    redeem.contribution_id = contribution_.id;
 
-    if (GetContributionTokenType() == ContributionTokenType::kSKU) {
-      payment_server_.reset(
-          new endpoint::PaymentServer(context().GetLedgerImpl()));
+    promotion_server_.reset(
+        new endpoint::PromotionServer(context().GetLedgerImpl()));
 
-      // TODO(zenparsing): Reimplement in |PaymentService|.
-      payment_server_->post_votes()->Request(
-          redeem, CreateLambdaCallback(this, &ProcessJob::OnTokensRedeemed));
-    } else {
-      promotion_server_.reset(
-          new endpoint::PromotionServer(context().GetLedgerImpl()));
-
-      promotion_server_->post_suggestions()->Request(
-          redeem, CreateLambdaCallback(this, &ProcessJob::OnTokensRedeemed));
-    }
+    promotion_server_->post_suggestions()->Request(
+        redeem, CreateLambdaCallback(this, &ProcessJob::OnGrantTokensRedeemed));
   }
 
-  void OnTokensRedeemed(mojom::Result result) {
-    if (result != mojom::Result::LEDGER_OK) {
-      // TODO(zenparsing): Log an error here.
+  void OnGrantTokensRedeemed(mojom::Result result) {
+    OnContributionProcessed(result == mojom::Result::LEDGER_OK);
+  }
+
+  void OnContributionProcessed(bool success) {
+    if (!success) {
+      // TODO(zenparsing): Log error
+      context().LogError(FROM_HERE) << "Unable to redeem contribution tokens";
       return Complete(false);
     }
 
@@ -140,10 +156,20 @@ class ProcessJob : public BATLedgerJob<bool> {
     }
   }
 
-  ContributionRequest contribution_;
+  PaymentVoteType GetVoteType() {
+    switch (contribution_.type) {
+      case ContributionType::kOneTime:
+        return PaymentVoteType::kOneOffTip;
+      case ContributionType::kRecurring:
+        return PaymentVoteType::kRecurringTip;
+      case ContributionType::kAutoContribute:
+        return PaymentVoteType::kAutoContribute;
+    }
+  }
+
+  Contribution contribution_;
   ContributionTokenHold hold_;
   std::unique_ptr<endpoint::PromotionServer> promotion_server_;
-  std::unique_ptr<endpoint::PaymentServer> payment_server_;
 };
 
 }  // namespace
@@ -152,12 +178,12 @@ const char TokenContributionProcessor::kContextKey[] =
     "token-contribution-processor";
 
 Future<bool> TokenContributionProcessor::ProcessContribution(
-    const ContributionRequest& contribution) {
+    const Contribution& contribution) {
   return context().StartJob<ProcessJob>(contribution);
 }
 
 Future<bool> TokenContributionProcessor::ProcessContribution(
-    const ContributionRequest& contribution,
+    const Contribution& contribution,
     ContributionTokenManager::Hold hold) {
   return context().StartJob<ProcessJob>(contribution, std::move(hold));
 }

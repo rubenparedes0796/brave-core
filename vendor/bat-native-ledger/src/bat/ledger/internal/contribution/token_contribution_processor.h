@@ -17,9 +17,9 @@ class TokenContributionProcessor : public BATLedgerContext::Object {
  public:
   static const char kContextKey[];
 
-  Future<bool> ProcessContribution(const ContributionRequest& contribution);
+  Future<bool> ProcessContribution(const Contribution& contribution);
 
-  Future<bool> ProcessContribution(const ContributionRequest& contribution,
+  Future<bool> ProcessContribution(const Contribution& contribution,
                                    ContributionTokenManager::Hold hold);
 };
 

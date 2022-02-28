@@ -41,12 +41,12 @@ class PrivacyPass : public BATLedgerContext::Object {
       const std::string& batch_proof,
       const std::string& public_key);
 
-  struct Redemption {
+  struct SignResult {
     std::string preimage;
     std::string signature;
   };
 
-  absl::optional<Redemption> SignMessage(const std::string& unblinded_token,
+  absl::optional<SignResult> SignMessage(const std::string& unblinded_token,
                                          const std::string& message);
 
  private:

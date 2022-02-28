@@ -105,7 +105,7 @@ absl::optional<std::vector<std::string>> PrivacyPass::UnblindTokens(
   return unblinded_tokens;
 }
 
-absl::optional<PrivacyPass::Redemption> PrivacyPass::SignMessage(
+absl::optional<PrivacyPass::SignResult> PrivacyPass::SignMessage(
     const std::string& unblinded_token,
     const std::string& message) {
   auto unblinded = UnblindedToken::decode_base64(unblinded_token);
@@ -123,7 +123,7 @@ absl::optional<PrivacyPass::Redemption> PrivacyPass::SignMessage(
     return {};
   }
 
-  return Redemption{.preimage = std::move(preimage),
+  return SignResult{.preimage = std::move(preimage),
                     .signature = std::move(signature)};
 }
 

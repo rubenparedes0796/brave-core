@@ -16,7 +16,7 @@ class ExternalContributionProcessor : public BATLedgerContext::Object {
  public:
   static const char kContextKey[];
 
-  Future<bool> ProcessContribution(const ContributionRequest& contribution);
+  Future<bool> ProcessContribution(const Contribution& contribution);
 };
 
 }  // namespace ledger

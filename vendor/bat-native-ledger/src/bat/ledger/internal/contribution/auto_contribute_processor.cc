@@ -88,7 +88,6 @@ struct ACState {
   double amount = 0;
   std::string purchase_job_id;
   std::vector<int64_t> reserved_tokens;
-  std::string error;
 
   auto ToValue() const {
     ValueWriter w;
@@ -98,7 +97,6 @@ struct ACState {
     w.Write("amount", amount);
     w.Write("purchase_job_id", purchase_job_id);
     w.Write("reserved_tokens", reserved_tokens);
-    w.Write("error", error);
     return w.Finish();
   }
 
@@ -110,7 +108,6 @@ struct ACState {
     r.Read("amount", &ACState::amount);
     r.Read("purchase_job_id", &ACState::purchase_job_id);
     r.Read("reserved_tokens", &ACState::reserved_tokens);
-    r.Read("error", &ACState::error);
     return r.Finish();
   }
 };
@@ -138,9 +135,7 @@ class ACJob : public ResumableJob<bool, ACState> {
     }
   }
 
-  void OnStateInvalid() override {
-    CompleteWithError("Unable to load state for auto contribute job");
-  }
+  void OnStateInvalid() override { Complete(false); }
 
  private:
   void AquireTokens() {
@@ -149,8 +144,9 @@ class ACJob : public ResumableJob<bool, ACState> {
         ReserveTokens();
         break;
       case ContributionSource::kBraveSKU:
-        return CompleteWithError(
-            "Cannot perform auto contribute with SKU tokens");
+        context().LogError(FROM_HERE)
+            << "Cannot perform auto contribute with SKU tokens";
+        return CompleteWithError(false, "invalid-token-type");
       case ContributionSource::kExternal:
         context().Get<ExternalWalletManager>().GetBalance().Then(
             ContinueWith(this, &ACJob::OnExternalBalanceRead));
@@ -184,7 +180,8 @@ class ACJob : public ResumableJob<bool, ACState> {
 
   void OnTokensPurchased(bool success) {
     if (!success) {
-      return CompleteWithError("Error purchasing contribution tokens");
+      context().LogError(FROM_HERE) << "Error purchasing contribution tokens";
+      return CompleteWithError(false, "purchase-error");
     }
     state().status = ACStatus::kPurchased;
     SaveState();
@@ -203,8 +200,9 @@ class ACJob : public ResumableJob<bool, ACState> {
 
     if (hold_.tokens().empty()) {
       if (state().source == ContributionSource::kExternal) {
-        return CompleteWithError(
-            "Expected auto contribute tokens were not found");
+        context().LogError(FROM_HERE)
+            << "Expected SKU auto contribute tokens were not found";
+        return CompleteWithError(false, "tokens-not-found");
       }
 
       context().LogInfo(FROM_HERE) << "No tokens available for auto "
@@ -265,9 +263,9 @@ class ACJob : public ResumableJob<bool, ACState> {
 
     auto publisher_hold = hold_.Split(publisher_state.votes);
 
-    ContributionRequest contribution(
+    Contribution contribution(
         ContributionType::kAutoContribute, publisher_state.publisher_id,
-        GetContributionRequestSource(), publisher_hold.GetTotalValue());
+        GetContributionSource(), publisher_hold.GetTotalValue());
 
     context()
         .Get<TokenContributionProcessor>()
@@ -307,19 +305,13 @@ class ACJob : public ResumableJob<bool, ACState> {
     }
   }
 
-  ContributionSource GetContributionRequestSource() {
+  ContributionSource GetContributionSource() {
     switch (state().source) {
       case ContributionSource::kExternal:
         return ContributionSource::kBraveSKU;
       default:
         return state().source;
     }
-  }
-
-  void CompleteWithError(const std::string& error) {
-    context().LogError(FROM_HERE) << error;
-    state().error = error;
-    Complete(false);
   }
 
   ContributionTokenHold hold_;

@@ -29,23 +29,21 @@ std::string StringifyEnum(ContributionSource value);
 absl::optional<ContributionSource> ParseEnum(
     const EnumString<ContributionSource>& s);
 
-// TODO(zenparsing): This should just be "Contribution" I suppose. Do we even
-// really need this structure?
-struct ContributionRequest {
-  ContributionRequest();
+struct Contribution {
+  Contribution();
 
-  ContributionRequest(ContributionType contribution_type,
-                      const std::string& publisher_id,
-                      ContributionSource source,
-                      double amount);
+  Contribution(ContributionType contribution_type,
+               const std::string& publisher_id,
+               ContributionSource source,
+               double amount);
 
-  ~ContributionRequest();
+  ~Contribution();
 
-  ContributionRequest(const ContributionRequest& other);
-  ContributionRequest& operator=(const ContributionRequest& other);
+  Contribution(const Contribution& other);
+  Contribution& operator=(const Contribution& other);
 
-  ContributionRequest(ContributionRequest&& other);
-  ContributionRequest& operator=(ContributionRequest&& other);
+  Contribution(Contribution&& other);
+  Contribution& operator=(Contribution&& other);
 
   std::string id;
   ContributionType type;
@@ -56,7 +54,6 @@ struct ContributionRequest {
 
 enum class ContributionTokenType { kVG, kSKU };
 
-// TODO(zenparsing): Naming? ContributionTokenInfo?
 struct ContributionToken {
   int64_t id;
   double value;
@@ -74,6 +71,12 @@ struct PublisherActivity {
 };
 
 struct RecurringContribution {
+  std::string publisher_id;
+  double amount;
+};
+
+struct PendingContribution {
+  int64_t id;
   std::string publisher_id;
   double amount;
 };

@@ -195,7 +195,7 @@ class InsertTokensJob : public BATLedgerJob<bool> {
     int64_t creds_status =
         static_cast<int64_t>(mojom::CredsBatchStatus::FINISHED);
 
-    std::vector<mojom::DBCommandPtr> commands;
+    SQLStore::CommandList commands;
     commands.push_back(SQLStore::CreateCommand(kCredsSQL, creds_id, trigger_id,
                                                trigger_type, "[]", "[]",
                                                creds_status));

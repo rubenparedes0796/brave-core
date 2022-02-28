@@ -21,7 +21,7 @@ constexpr double kTransferFee = 0.05;
 
 class ProcessJob : public BATLedgerJob<bool> {
  public:
-  void Start(const ContributionRequest& contribution) {
+  void Start(const Contribution& contribution) {
     DCHECK_GT(contribution.amount, 0.0);
     DCHECK(!contribution.id.empty());
     DCHECK(contribution.type != ContributionType::kAutoContribute);
@@ -111,7 +111,7 @@ class ProcessJob : public BATLedgerJob<bool> {
     return "";
   }
 
-  ContributionRequest contribution_;
+  Contribution contribution_;
   double amount_;
   double fee_;
 };
@@ -122,7 +122,7 @@ const char ExternalContributionProcessor::kContextKey[] =
     "external-contribution-processor";
 
 Future<bool> ExternalContributionProcessor::ProcessContribution(
-    const ContributionRequest& contribution) {
+    const Contribution& contribution) {
   return context().StartJob<ProcessJob>(contribution);
 }
 

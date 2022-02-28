@@ -24,10 +24,14 @@ class ContributionStore : public BATLedgerContext::Object {
   Future<bool> SavePendingContribution(const std::string& publisher_id,
                                        double amount);
 
-  Future<bool> SaveContribution(const ContributionRequest& contribution);
+  Future<std::vector<PendingContribution>> GetPendingContributions();
+
+  Future<bool> DeletePendingContribution(int64_t id);
+
+  Future<bool> SaveContribution(const Contribution& contribution);
 
   Future<bool> SaveContribution(
-      const ContributionRequest& contribution,
+      const Contribution& contribution,
       const ExternalWalletTransferResult& transfer_result);
 
   Future<bool> AddPublisherVisit(const std::string& publisher_id,
@@ -38,6 +42,11 @@ class ContributionStore : public BATLedgerContext::Object {
   Future<bool> ResetPublisherActivity();
 
   Future<std::vector<RecurringContribution>> GetRecurringContributions();
+
+  Future<bool> SetRecurringContribution(const std::string& publisher_id,
+                                        double amount);
+
+  Future<bool> DeleteRecurringContribution(const std::string& publisher_id);
 
   Future<base::Time> GetLastScheduledContributionTime();
 

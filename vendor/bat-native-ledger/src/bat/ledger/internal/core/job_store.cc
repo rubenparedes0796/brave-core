@@ -100,16 +100,21 @@ absl::optional<base::Value> JobStore::GetState(const std::string& job_id) {
 }
 
 void JobStore::OnJobCompleted(const std::string& job_id) {
+  OnJobCompleted(job_id, "");
+}
+
+void JobStore::OnJobCompleted(const std::string& job_id,
+                              const std::string& error) {
   size_t erased = state_map_.erase(job_id);
   if (erased == 0) {
     return;
   }
 
   const char kSQL[] = R"sql(
-      UPDATE job_state SET completed_at = ? WHERE job_id = ?
+      UPDATE job_state SET completed_at = ?, error = ? WHERE job_id = ?
   )sql";
 
-  context().Get<SQLStore>().Run(kSQL, SQLStore::TimeString(), job_id);
+  context().Get<SQLStore>().Run(kSQL, SQLStore::TimeString(), job_id, error);
 }
 
 std::vector<std::string> JobStore::GetActiveJobs(const std::string& job_type) {

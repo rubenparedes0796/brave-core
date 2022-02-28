@@ -79,8 +79,8 @@ URLRequest PostVotesEndpoint::MapRequest(
   auto& pp = context().Get<PrivacyPass>();
 
   for (auto& v : votes) {
-    auto redemption = pp.SignMessage(v.unblinded_token, data.vote);
-    if (!redemption) {
+    auto result = pp.SignMessage(v.unblinded_token, data.vote);
+    if (!result) {
       // If for some reason we are unable to sign the message with the provided
       // unblinded token (e.g. if the token is corrupt) then log an error and
       // continue processing the remaining tokens. The token will be marked as
@@ -89,9 +89,9 @@ URLRequest PostVotesEndpoint::MapRequest(
           << "Unable to sign message with unblined token";
     } else {
       data.credentials.push_back(
-          RequestCredential{.t = redemption->preimage,
+          RequestCredential{.t = result->preimage,
                             .public_key = v.public_key,
-                            .signature = redemption->signature});
+                            .signature = result->signature});
     }
   }
 

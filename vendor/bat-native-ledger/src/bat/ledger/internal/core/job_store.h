@@ -71,6 +71,8 @@ class JobStore : public BATLedgerContext::Object {
 
   void OnJobCompleted(const std::string& job_id);
 
+  void OnJobCompleted(const std::string& job_id, const std::string& error);
+
   std::vector<std::string> GetActiveJobs(const std::string& job_type);
 
  private:
@@ -92,12 +94,19 @@ class ResumableJob : public BATLedgerJob<R> {
     if (state_) {
       Resume();
     } else {
+      this->context().LogError(FROM_HERE)
+          << "Invalid state for job " << job_id_;
       OnStateInvalid();
     }
   }
 
   void Complete(R result) override {
     GetJobStore().OnJobCompleted(job_id_);
+    BATLedgerJob<R>::Complete(std::move(result));
+  }
+
+  void CompleteWithError(R result, const std::string& error) {
+    GetJobStore().OnJobCompleted(job_id_, error);
     BATLedgerJob<R>::Complete(std::move(result));
   }
 

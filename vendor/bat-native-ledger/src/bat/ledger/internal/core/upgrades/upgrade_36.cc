@@ -38,6 +38,7 @@ const char kSQL[] = R"sql(
     job_id TEXT NOT NULL PRIMARY KEY,
     job_type TEXT NOT NULL,
     state TEXT,
+    error TEXT,
     created_at TEXT NOT NULL,
     completed_at TEXT
   );

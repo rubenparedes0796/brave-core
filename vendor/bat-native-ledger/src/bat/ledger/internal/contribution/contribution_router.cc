@@ -28,8 +28,8 @@ Future<bool> ContributionRouter::SendContribution(
     return Future<bool>::Completed(true);
   }
 
-  ContributionRequest contribution(contribution_type, publisher_id,
-                                   GetCurrentSource(), amount);
+  Contribution contribution(contribution_type, publisher_id, GetCurrentSource(),
+                            amount);
 
   switch (contribution.source) {
     case ContributionSource::kBraveVG:

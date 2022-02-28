@@ -16,64 +16,16 @@ namespace ledger {
 
 namespace {
 
+constexpr base::TimeDelta kPendingExpiresAfter = base::Days(90);
+
 const char kLastScheduledContributionKey[] = "last-scheduled-contribution";
 
-class AddVisitJob : public BATLedgerJob<bool> {
- public:
-  void Start(const std::string& publisher_id, base::TimeDelta duration) {
-    publisher_id_ = publisher_id;
-    duration_ = duration;
-
-    static const char kSQL[] = R"sql(
-      SELECT visits, duration
-      FROM contribution_publisher
-      WHERE publisher_id = ?
-    )sql";
-
-    context()
-        .Get<SQLStore>()
-        .Query(kSQL, publisher_id_)
-        .Then(ContinueWith(this, &AddVisitJob::OnRead));
-  }
-
- private:
-  void OnRead(SQLReader reader) {
-    if (!reader.Step()) {
-      return Insert();
-    }
-
-    int64_t visits = reader.ColumnInt64(0) + 1;
-    duration_ += base::Seconds(reader.ColumnDouble(1));
-
-    static const char kSQL[] = R"sql(
-      UPDATE contribution_publisher
-      SET visits = ?, duration = ?
-      WHERE publisher_id = ?
-    )sql";
-
-    context()
-        .Get<SQLStore>()
-        .Run(kSQL, visits, duration_.InSecondsF(), publisher_id_)
-        .Then(ContinueWith(this, &AddVisitJob::OnUpdated));
-  }
-
-  void Insert() {
-    static const char kSQL[] = R"sql(
-      INSERT INTO contribution_publisher (publisher_id, visits, duration)
-      VALUES (?, ?, ?)
-    )sql";
-
-    context()
-        .Get<SQLStore>()
-        .Run(kSQL, publisher_id_, 1, duration_.InSecondsF())
-        .Then(ContinueWith(this, &AddVisitJob::OnUpdated));
-  }
-
-  void OnUpdated(SQLReader reader) { Complete(reader.Succeeded()); }
-
-  std::string publisher_id_;
-  base::TimeDelta duration_;
-};
+auto CreatePublisherInsertCommand(const std::string& publisher_id) {
+  static const char kSQL[] = R"sql(
+      INSERT OR IGNORE INTO contribution_publisher (publisher_id) VALUES (?)
+  )sql";
+  return SQLStore::CreateCommand(kSQL, publisher_id);
+}
 
 class GetLastContributionTimeJob : public BATLedgerJob<base::Time> {
  public:
@@ -116,8 +68,42 @@ Future<bool> ContributionStore::SavePendingContribution(
       .Map(base::BindOnce([](SQLReader reader) { return reader.Succeeded(); }));
 }
 
+Future<std::vector<PendingContribution>>
+ContributionStore::GetPendingContributions() {
+  static const char kSQL[] = R"sql(
+      SELECT pending_contribution_id, publisher_id, amount
+      FROM pending_contribution
+      WHERE created_at > ?
+  )sql";
+
+  base::Time cutoff = base::Time::Now() - kPendingExpiresAfter;
+
+  return context()
+      .Get<SQLStore>()
+      .Query(kSQL, SQLStore::TimeString(cutoff))
+      .Map(base::BindOnce([](SQLReader reader) {
+        std::vector<PendingContribution> contributions;
+        while (reader.Step()) {
+          contributions.push_back(
+              PendingContribution{.id = reader.ColumnInt64(0),
+                                  .publisher_id = reader.ColumnString(1),
+                                  .amount = reader.ColumnDouble(2)});
+        }
+        return contributions;
+      }));
+}
+
+Future<bool> ContributionStore::DeletePendingContribution(int64_t id) {
+  static const char kSQL[] = R"sql(
+    DELETE FROM pending_contribution WHERE pending_contribution_id = ?
+  )sql";
+
+  return context().Get<SQLStore>().Run(kSQL, id).Map(
+      base::BindOnce([](SQLReader reader) { return reader.Succeeded(); }));
+}
+
 Future<bool> ContributionStore::SaveContribution(
-    const ContributionRequest& contribution) {
+    const Contribution& contribution) {
   static const char kSQL[] = R"sql(
     INSERT OR REPLACE INTO contribution (contribution_id, contribution_type,
       publisher_id, amount, source, completed_at)
@@ -135,7 +121,7 @@ Future<bool> ContributionStore::SaveContribution(
 }
 
 Future<bool> ContributionStore::SaveContribution(
-    const ContributionRequest& contribution,
+    const Contribution& contribution,
     const ExternalWalletTransferResult& transfer_result) {
   static const char kSQL[] = R"sql(
     INSERT OR REPLACE INTO contribution (contribution_id, contribution_type,
@@ -159,7 +145,18 @@ Future<bool> ContributionStore::SaveContribution(
 Future<bool> ContributionStore::AddPublisherVisit(
     const std::string& publisher_id,
     base::TimeDelta duration) {
-  return context().StartJob<AddVisitJob>(publisher_id, duration);
+  static const char kSQL[] = R"sql(
+      UPDATE contribution_publisher
+      SET visits = visits + 1, duration = duration + ?
+      WHERE publisher_id = ?
+  )sql";
+
+  return context()
+      .Get<SQLStore>()
+      .RunTransaction(
+          CreatePublisherInsertCommand(publisher_id),
+          SQLStore::CreateCommand(kSQL, duration.InSecondsF(), publisher_id))
+      .Map(base::BindOnce([](SQLReader reader) { return reader.Succeeded(); }));
 }
 
 Future<std::vector<PublisherActivity>>
@@ -210,6 +207,31 @@ ContributionStore::GetRecurringContributions() {
         }
         return contributions;
       }));
+}
+
+Future<bool> ContributionStore::SetRecurringContribution(
+    const std::string& publisher_id,
+    double amount) {
+  static const char kSQL[] = R"sql(
+      UPDATE contribution_publisher
+      SET recurring_amount = ?
+      WHERE publisher_id = ?
+  )sql";
+
+  if (amount < 0) {
+    amount = 0;
+  }
+
+  return context()
+      .Get<SQLStore>()
+      .RunTransaction(CreatePublisherInsertCommand(publisher_id),
+                      SQLStore::CreateCommand(kSQL, amount, publisher_id))
+      .Map(base::BindOnce([](SQLReader reader) { return reader.Succeeded(); }));
+}
+
+Future<bool> ContributionStore::DeleteRecurringContribution(
+    const std::string& publisher_id) {
+  return SetRecurringContribution(publisher_id, 0);
 }
 
 Future<base::Time> ContributionStore::GetLastScheduledContributionTime() {

@@ -86,7 +86,7 @@ class FeeJob : public ResumableJob<bool, FeeState> {
       if (retry_count_ >= kMaxRetries) {
         context().LogError(FROM_HERE) << "Unable to send fee for contribution "
                                       << state().contribution_id;
-        return Complete(false);
+        return CompleteWithError(false, "Transfer failed");
       }
 
       context().LogError(FROM_HERE)

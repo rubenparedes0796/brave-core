@@ -80,7 +80,6 @@ struct PurchaseState {
   std::vector<std::string> tokens;
   std::vector<std::string> blinded_tokens;
   PurchaseStatus status = PurchaseStatus::kPending;
-  std::string error;
 
   base::Value ToValue() const {
     ValueWriter w;
@@ -92,7 +91,6 @@ struct PurchaseState {
     w.Write("tokens", tokens);
     w.Write("blinded_tokens", blinded_tokens);
     w.Write("status", status);
-    w.Write("error", error);
     return w.Finish();
   }
 
@@ -106,7 +104,6 @@ struct PurchaseState {
     r.Read("tokens", &PurchaseState::tokens);
     r.Read("blinded_tokens", &PurchaseState::blinded_tokens);
     r.Read("status", &PurchaseState::status);
-    r.Read("error", &PurchaseState::error);
     return r.Finish();
   }
 };
@@ -137,13 +134,14 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
     }
   }
 
-  void OnStateInvalid() override { CompleteWithError("Invalid job state"); }
+  void OnStateInvalid() override { Complete(false); }
 
  private:
   void CreateOrder() {
     if (state().quantity <= 0) {
       NOTREACHED();
-      return CompleteWithError("Invalid token order quantity");
+      context().LogError(FROM_HERE) << "Invalid token order quantity";
+      return CompleteWithError(false, "invalid-quantity");
     }
 
     const char* sku = context().Get<EnvironmentConfig>().auto_contribute_sku();
@@ -156,17 +154,20 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
 
   void OnOrderCreated(absl::optional<PaymentOrder> order) {
     if (!order) {
-      return CompleteWithError("Error attempting to create order");
+      context().LogError(FROM_HERE) << "Error attempting to create order";
+      return CompleteWithError(false, "create-order-error");
     }
 
     if (order->items.size() != 1) {
-      return CompleteWithError("Unexpected number of order items");
+      context().LogError(FROM_HERE) << "Unexpected number of order items";
+      return CompleteWithError(false, "invalid-item-count");
     }
 
     auto& item = order->items.front();
     // TODO(zenparsing): Double comparison?
     if (item.price != kVotePrice) {
-      return CompleteWithError("Unexpected vote price for order item");
+      context().LogError(FROM_HERE) << "Unexpected vote price for order item";
+      return CompleteWithError(false, "invalid-vote-price");
     }
 
     state().order_id = order->id;
@@ -181,8 +182,9 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
     auto& manager = context().Get<ExternalWalletManager>();
     auto destination = manager.GetContributionTokenOrderAddress();
     if (!destination) {
-      return CompleteWithError(
-          "External provider does not support contribution token orders");
+      context().LogError(FROM_HERE)
+          << "External provider does not support contribution token orders";
+      return CompleteWithError(false, "invalid-provider");
     }
 
     double transfer_amount = state().quantity * kVotePrice;
@@ -193,7 +195,8 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
   void OnTransferCompleted(
       absl::optional<ExternalWalletTransferResult> result) {
     if (!result) {
-      return CompleteWithError("External transfer failed");
+      context().LogError(FROM_HERE) << "External transfer failed";
+      return CompleteWithError(false, "transfer-failed");
     }
 
     state().external_provider = result->provider;
@@ -206,7 +209,9 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
 
   void SendTransaction() {
     if (!state().external_provider) {
-      return CompleteWithError("AC state missing external wallet provider");
+      context().LogError(FROM_HERE)
+          << "AC state missing external wallet provider";
+      return CompleteWithError(false, "missing-provider");
     }
 
     context()
@@ -355,12 +360,6 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
         .Get<DelayGenerator>()
         .Delay(FROM_HERE, backoff_.GetNextDelay())
         .DiscardValueThen(std::move(callback));
-  }
-
-  void CompleteWithError(const std::string& error) {
-    context().LogError(FROM_HERE) << error;
-    state().error = error;
-    Complete(false);
   }
 
   BackoffDelay backoff_{kMinRetryDelay, kMaxRetryDelay};
