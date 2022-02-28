@@ -45,7 +45,6 @@ class ExtensionWhitelistService : public LocalDataFilesObserver {
   bool IsWhitelisted(const std::string& extension_id) const;
   bool IsBlacklisted(const std::string& extension_id) const;
   bool IsVetted(const std::string& extension_id) const;
-  bool IsVetted(const extensions::Extension* extension) const;
 
   // implementation of LocalDataFilesObserver
   void OnComponentReady(const std::string& component_id,
