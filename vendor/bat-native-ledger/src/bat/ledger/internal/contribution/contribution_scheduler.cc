@@ -231,9 +231,9 @@ class SchedulerJob : public BATLedgerJob<bool> {
     ScheduledContributionState state;
 
     for (auto& contribution : contributions) {
-      state.contributions.push_back(RecurringContributionState{
-          .publisher_id = std::move(contribution.publisher_id),
-          .amount = contribution.amount});
+      state.contributions.push_back(
+          {.publisher_id = std::move(contribution.publisher_id),
+           .amount = contribution.amount});
     }
 
     state.activity = std::move(activity);

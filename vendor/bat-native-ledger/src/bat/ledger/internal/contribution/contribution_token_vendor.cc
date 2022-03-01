@@ -328,11 +328,10 @@ class PurchaseJob : public ResumableJob<bool, PurchaseState> {
 
     std::vector<ContributionToken> contribution_tokens;
     for (auto& unblinded : *unblinded_tokens) {
-      contribution_tokens.push_back(
-          ContributionToken{.id = 0,
-                            .value = kVotePrice,
-                            .unblinded_token = std::move(unblinded),
-                            .public_key = credentials->public_key});
+      contribution_tokens.push_back({.id = 0,
+                                     .value = kVotePrice,
+                                     .unblinded_token = std::move(unblinded),
+                                     .public_key = credentials->public_key});
     }
 
     context()

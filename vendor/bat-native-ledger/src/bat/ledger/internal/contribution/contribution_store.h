@@ -28,12 +28,6 @@ class ContributionStore : public BATLedgerContext::Object {
 
   Future<bool> DeletePendingContribution(int64_t id);
 
-  Future<bool> SaveContribution(const Contribution& contribution);
-
-  Future<bool> SaveContribution(
-      const Contribution& contribution,
-      const ExternalWalletTransferResult& transfer_result);
-
   Future<bool> AddPublisherVisit(const std::string& publisher_id,
                                  base::TimeDelta duration);
 

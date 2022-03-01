@@ -10,8 +10,8 @@
 #include <utility>
 #include <vector>
 
-#include "bat/ledger/internal/contribution/contribution_store.h"
 #include "bat/ledger/internal/core/bat_ledger_job.h"
+#include "bat/ledger/internal/core/job_store.h"
 #include "bat/ledger/internal/credentials/credentials_redeem.h"
 #include "bat/ledger/internal/endpoint/promotion/promotion_server.h"
 #include "bat/ledger/internal/ledger_impl.h"
@@ -35,7 +35,6 @@ mojom::RewardsType ContributionTypeToRewardsType(ContributionType type) {
 class ProcessJob : public BATLedgerJob<bool> {
  public:
   void Start(const Contribution& contribution) {
-    DCHECK(!contribution.id.empty());
     DCHECK_GT(contribution.amount, 0.0);
 
     contribution_ = contribution;
@@ -48,7 +47,6 @@ class ProcessJob : public BATLedgerJob<bool> {
 
   void Start(const Contribution& contribution,
              ContributionTokenManager::Hold hold) {
-    DCHECK(!contribution.id.empty());
     contribution_ = contribution;
     OnTokensReserved(std::move(hold));
   }
@@ -83,8 +81,8 @@ class ProcessJob : public BATLedgerJob<bool> {
     // is that there is currently a knowledge boundary between payments and
     // contributions.
     for (auto& token : hold_.tokens()) {
-      votes.push_back(PaymentVote{.unblinded_token = token.unblinded_token,
-                                  .public_key = token.public_key});
+      votes.push_back({.unblinded_token = token.unblinded_token,
+                       .public_key = token.public_key});
     }
 
     context()
@@ -123,24 +121,20 @@ class ProcessJob : public BATLedgerJob<bool> {
 
   void OnContributionProcessed(bool success) {
     if (!success) {
-      // TODO(zenparsing): Log error
       context().LogError(FROM_HERE) << "Unable to redeem contribution tokens";
       return Complete(false);
     }
 
+    std::string id = context().Get<JobStore>().AddCompletedState(
+        "token-contribution", contribution_);
+
     // TODO(zenparsing): Do we need to wait for this?
-    hold_.OnTokensRedeemed(contribution_.id);
+    hold_.OnTokensRedeemed(id);
 
-    context()
-        .Get<ContributionStore>()
-        .SaveContribution(contribution_)
-        .Then(ContinueWith(this, &ProcessJob::OnSaved));
-  }
-
-  void OnSaved(bool) {
     // TODO(zenparsing): Call the following.
     // ledger_->ledger_client()->OnReconcileComplete
     // ledger_->database()->SaveBalanceReportInfoItem
+
     Complete(true);
   }
 

@@ -8,8 +8,9 @@
 #include <string>
 
 #include "bat/ledger/internal/contribution/contribution_fee_processor.h"
-#include "bat/ledger/internal/contribution/contribution_store.h"
 #include "bat/ledger/internal/core/bat_ledger_job.h"
+#include "bat/ledger/internal/core/job_store.h"
+#include "bat/ledger/internal/core/value_converters.h"
 #include "bat/ledger/internal/external_wallet/external_wallet_manager.h"
 #include "bat/ledger/internal/publisher/publisher_service.h"
 
@@ -19,11 +20,24 @@ namespace {
 
 constexpr double kTransferFee = 0.05;
 
+struct JobState {
+  Contribution contribution;
+  ExternalWalletProvider provider;
+  std::string transaction_id;
+
+  auto ToValue() const {
+    ValueWriter w;
+    w.Write("contribution", contribution);
+    w.Write("provider", provider);
+    w.Write("transaction_id", transaction_id);
+    return w.Finish();
+  }
+};
+
 class ProcessJob : public BATLedgerJob<bool> {
  public:
   void Start(const Contribution& contribution) {
     DCHECK_GT(contribution.amount, 0.0);
-    DCHECK(!contribution.id.empty());
     DCHECK(contribution.type != ContributionType::kAutoContribute);
     DCHECK(contribution.source == ContributionSource::kExternal);
 
@@ -80,20 +94,20 @@ class ProcessJob : public BATLedgerJob<bool> {
       return Complete(false);
     }
 
-    context().Get<ContributionFeeProcessor>().SendContributionFee(
-        contribution_.id, fee_);
+    JobState job_state{.contribution = std::move(contribution_),
+                       .provider = result->provider,
+                       .transaction_id = result->transaction_id};
 
-    context()
-        .Get<ContributionStore>()
-        .SaveContribution(contribution_, *result)
-        .Then(ContinueWith(this, &ProcessJob::OnSaved));
-  }
+    std::string id = context().Get<JobStore>().AddCompletedState(
+        "external-contribution", job_state);
 
-  void OnSaved(bool) {
+    context().Get<ContributionFeeProcessor>().SendContributionFee(id, fee_);
+
+    Complete(true);
+
     // TODO(zenparsing): Call the following.
     // ledger_->ledger_client()->OnReconcileComplete
     // ledger_->database()->SaveBalanceReportInfoItem
-    Complete(true);
   }
 
   std::string GetPublisherAddress(const Publisher& publisher) {

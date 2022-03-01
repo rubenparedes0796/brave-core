@@ -24,7 +24,7 @@ JobStore::~JobStore() = default;
 
 Future<bool> JobStore::Initialize() {
   const char kSQL[] = R"sql(
-      SELECT job_id, job_type, state FROM job_state WHERE completed_at IS NULL
+    SELECT job_id, job_type, state FROM job_state WHERE completed_at IS NULL
   )sql";
 
   return context().Get<SQLStore>().Query(kSQL).Map(base::BindOnce(
@@ -63,13 +63,20 @@ std::string JobStore::AddState(const std::string& job_type,
   DCHECK(ok);
 
   const char kSQL[] = R"sql(
-      INSERT OR REPLACE INTO job_state (job_id, job_type, state, created_at)
-      VALUES (?, ?, ?, ?)
+    INSERT OR REPLACE INTO job_state (job_id, job_type, state, created_at)
+    VALUES (?, ?, ?, ?)
   )sql";
 
   context().Get<SQLStore>().Run(kSQL, job_id, job_type, json,
                                 SQLStore::TimeString());
 
+  return job_id;
+}
+
+std::string JobStore::AddCompletedState(const std::string& job_type,
+                                        const base::Value& value) {
+  std::string job_id = AddState(job_type, value);
+  OnJobCompleted(job_id);
   return job_id;
 }
 
@@ -84,7 +91,7 @@ void JobStore::SetState(const std::string& job_id, const base::Value& value) {
   CHECK(ok);
 
   const char kSQL[] = R"sql(
-      UPDATE job_state SET state = ? WHERE job_id = ?
+    UPDATE job_state SET state = ? WHERE job_id = ?
   )sql";
 
   context().Get<SQLStore>().Run(kSQL, json, job_id);
@@ -111,10 +118,10 @@ void JobStore::OnJobCompleted(const std::string& job_id,
   }
 
   const char kSQL[] = R"sql(
-      UPDATE job_state SET completed_at = ?, error = ? WHERE job_id = ?
+    UPDATE job_state SET completed_at = ?, error = ? WHERE job_id = ?
   )sql";
 
-  context().Get<SQLStore>().Run(kSQL, SQLStore::TimeString(), job_id, error);
+  context().Get<SQLStore>().Run(kSQL, SQLStore::TimeString(), error, job_id);
 }
 
 std::vector<std::string> JobStore::GetActiveJobs(const std::string& job_type) {

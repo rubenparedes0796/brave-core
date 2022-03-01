@@ -263,9 +263,10 @@ class ACJob : public ResumableJob<bool, ACState> {
 
     auto publisher_hold = hold_.Split(publisher_state.votes);
 
-    Contribution contribution(
-        ContributionType::kAutoContribute, publisher_state.publisher_id,
-        GetContributionSource(), publisher_hold.GetTotalValue());
+    Contribution contribution{.type = ContributionType::kAutoContribute,
+                              .publisher_id = publisher_state.publisher_id,
+                              .amount = publisher_hold.GetTotalValue(),
+                              .source = GetContributionSource()};
 
     context()
         .Get<TokenContributionProcessor>()
@@ -350,7 +351,7 @@ Future<bool> AutoContributeProcessor::SendContributions(
   ACState state{.source = source, .amount = amount};
   for (auto& pair : weights) {
     state.publishers.push_back(
-        PublisherState{.publisher_id = pair.first, .weight = pair.second});
+        {.publisher_id = pair.first, .weight = pair.second});
   }
 
   return context().Get<JobStore>().StartJobWithState<ACJob>(state);

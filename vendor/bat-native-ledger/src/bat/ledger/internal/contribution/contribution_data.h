@@ -30,26 +30,12 @@ absl::optional<ContributionSource> ParseEnum(
     const EnumString<ContributionSource>& s);
 
 struct Contribution {
-  Contribution();
-
-  Contribution(ContributionType contribution_type,
-               const std::string& publisher_id,
-               ContributionSource source,
-               double amount);
-
-  ~Contribution();
-
-  Contribution(const Contribution& other);
-  Contribution& operator=(const Contribution& other);
-
-  Contribution(Contribution&& other);
-  Contribution& operator=(Contribution&& other);
-
-  std::string id;
   ContributionType type;
   std::string publisher_id;
   double amount;
   ContributionSource source;
+
+  base::Value ToValue() const;
 };
 
 enum class ContributionTokenType { kVG, kSKU };

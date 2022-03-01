@@ -126,11 +126,10 @@ class ReserveByIdJob : public BATLedgerJob<Hold> {
     std::vector<ContributionToken> tokens;
 
     while (reader.Step()) {
-      tokens.push_back(
-          ContributionToken{.id = reader.ColumnInt64(0),
-                            .value = reader.ColumnDouble(1),
-                            .unblinded_token = reader.ColumnString(2),
-                            .public_key = reader.ColumnString(3)});
+      tokens.push_back({.id = reader.ColumnInt64(0),
+                        .value = reader.ColumnDouble(1),
+                        .unblinded_token = reader.ColumnString(2),
+                        .public_key = reader.ColumnString(3)});
     }
 
     Complete(Hold(context().GetWeakPtr(), std::move(tokens)));

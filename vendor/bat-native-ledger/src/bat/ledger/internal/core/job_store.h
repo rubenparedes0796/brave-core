@@ -51,6 +51,14 @@ class JobStore : public BATLedgerContext::Object {
     return AddState(job_type, state.ToValue());
   }
 
+  std::string AddCompletedState(const std::string& job_type,
+                                const base::Value& value);
+
+  template <typename T>
+  std::string AddCompletedState(const std::string& job_type, const T& state) {
+    return AddCompletedState(job_type, state.ToValue());
+  }
+
   void SetState(const std::string& job_id, const base::Value& value);
 
   template <typename T>

@@ -7,7 +7,6 @@
 
 #include <string>
 
-#include "base/guid.h"
 #include "bat/ledger/internal/core/value_converters.h"
 
 namespace ledger {
@@ -63,26 +62,13 @@ absl::optional<PublisherActivity> PublisherActivity::FromValue(
   return r.Finish();
 }
 
-Contribution::Contribution() = default;
-
-Contribution::Contribution(ContributionType contribution_type,
-                           const std::string& publisher_id,
-                           ContributionSource source,
-                           double amount)
-    : id(base::GUID::GenerateRandomV4().AsLowercaseString()),
-      type(contribution_type),
-      publisher_id(publisher_id),
-      amount(amount),
-      source(source) {}
-
-Contribution::~Contribution() = default;
-
-Contribution::Contribution(const Contribution& other) = default;
-
-Contribution& Contribution::operator=(const Contribution& other) = default;
-
-Contribution::Contribution(Contribution&& other) = default;
-
-Contribution& Contribution::operator=(Contribution&& other) = default;
+base::Value Contribution::ToValue() const {
+  ValueWriter w;
+  w.Write("type", type);
+  w.Write("publisher_id", publisher_id);
+  w.Write("amount", amount);
+  w.Write("source", source);
+  return w.Finish();
+}
 
 }  // namespace ledger
