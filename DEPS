@@ -21,7 +21,7 @@ deps = {
   "third_party/bitcoin-core/src": "https://github.com/bitcoin/bitcoin.git@95ea54ba089610019a74c1176a2c7c0dba144b1c",
   "third_party/argon2/src": "https://github.com/P-H-C/phc-winner-argon2.git@62358ba2123abd17fccf2a108a301d4b52c01a7c",
   "third_party/boost/config": "https://github.com/boostorg/config.git@e108255ffb5d2557ed3398b3fc575a2e9fd434cc",
-  "third_party/boost/multiprecision": "https://github.com/mborland/multiprecision.git@78e2be1a6df7c5e0c17961e2d21cdfaa8cbf236c",
+  "third_party/boost/multiprecision": "https://github.com/boostorg/multiprecision.git@7e8d2aee205affe60a3aa165892b82b4d3b461cb",
 }
 
 recursedeps = [
