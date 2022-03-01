@@ -10,6 +10,7 @@
 #include "bat/ads/internal/logging.h"
 
 #include "base/check.h"
+#include "base/time/time.h"
 #include "bat/ads/ads_client.h"
 #include "bat/ads/internal/ads_client_helper.h"
 #include "bat/ads/internal/federated/covariate_log_entry.h"

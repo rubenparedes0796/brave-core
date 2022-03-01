@@ -9,12 +9,11 @@
 #include <memory>
 
 #include "base/containers/flat_map.h"
-#include "base/time/time.h"
 #include "bat/ads/public/interfaces/ads.mojom.h"
 
 namespace base {
-class Value;
-}
+class Time;
+}  // namespace base
 
 namespace ads {
 
