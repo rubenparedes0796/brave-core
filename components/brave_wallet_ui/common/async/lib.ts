@@ -478,19 +478,15 @@ export async function sendEthTransaction (store: Store, payload: SendTransaction
 
 export async function sendFilTransaction (payload: SendTransactionParams) {
   const apiProxy = getAPIProxy()
-  const txData: BraveWallet.TxData = {
+  const { chainId } = await apiProxy.jsonRpcService.getChainId()
+  // TODO(spylogsster): how to fil gasFeeCap, gasPremium, gasLimit
+  const filTxData: BraveWallet.FilTxData = {
     nonce: '',
-    // Estimated by eth_tx_service if value is '' for legacy transactions
-    gasPrice: payload.gasPrice || '',
-    // Estimated by eth_tx_service if value is ''
+    gasPremium: '',
+    gasFeeCap: '',
     gasLimit: payload.gas || '',
     to: payload.to,
     value: payload.value,
-    data: payload.data || []
-  }
-  const { chainId } = await apiProxy.jsonRpcService.getChainId()
-  const filTxData: BraveWallet.FilTxData = {
-    baseData: txData,
     chainId
   }
   // @ts-expect-error google closure is ok with undefined for other fields but mojom runtime is not

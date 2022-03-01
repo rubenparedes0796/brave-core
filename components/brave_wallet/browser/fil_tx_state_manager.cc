@@ -16,26 +16,13 @@
 #include "brave/components/brave_wallet/common/fil_address.h"
 
 namespace brave_wallet {
-namespace {
-constexpr size_t kMaxConfirmedTxNum = 10;
-constexpr size_t kMaxRejectedTxNum = 10;
-}  // namespace
-#include "base/notreached.h"
-
-namespace brave_wallet {
-
 
 FilTxStateManager::FilTxStateManager(PrefService* prefs,
                                      JsonRpcService* json_rpc_service)
-    : TxStateManager(prefs, json_rpc_service), weak_factory_(this) {
-  DCHECK(json_rpc_service_);
-  json_rpc_service_->AddObserver(observer_receiver_.BindNewPipeAndPassRemote());
-  chain_id_ = json_rpc_service_->GetChainId();
-  network_url_ = json_rpc_service_->GetNetworkUrl();
-}
+    : TxStateManager(prefs, json_rpc_service), weak_factory_(this) {}
 
 FilTxStateManager::~FilTxStateManager() = default;
-
+/*
 std::vector<std::unique_ptr<TxMeta>> FilTxStateManager::GetTransactionsByStatus(
     absl::optional<mojom::TransactionStatus> status,
     absl::optional<FilAddress> from) {
@@ -45,7 +32,7 @@ std::vector<std::unique_ptr<TxMeta>> FilTxStateManager::GetTransactionsByStatus(
                        : absl::nullopt;
   return TxStateManager::GetTransactionsByStatus(status, from_string);
 }
-/*
+
 base::Value FilTxStateManager::TxMetaToValue(const TxMeta& meta) {
   base::Value dict(base::Value::Type::DICTIONARY);
   dict.SetStringKey("id", meta.id);
@@ -83,13 +70,6 @@ mojom::TransactionInfoPtr FilTxStateManager::TxMetaToTransactionInfo(
       base::Milliseconds(meta.confirmed_time.ToJavaTime()));
 }
 */
-
-std::unique_ptr<TxMeta> FilTxStateManager::ValueToTxMeta(
-    const base::Value& value) {
-  return std::unique_ptr<FilTxMeta>{
-      static_cast<FilTxMeta*>(ValueToTxMeta(value).release())};
-}
-
 std::unique_ptr<TxMeta> FilTxStateManager::ValueToTxMeta(
     const base::Value& value) {
   std::unique_ptr<FilTxMeta> meta = std::make_unique<FilTxMeta>();
@@ -105,6 +85,11 @@ std::unique_ptr<TxMeta> FilTxStateManager::ValueToTxMeta(
   meta->set_tx_receipt(*tx_receipt_from_value);
 
   return meta;
+}
+
+std::unique_ptr<FilTxMeta> FilTxStateManager::GetFilTx(const std::string& id) {
+  return std::unique_ptr<FilTxMeta>{
+      static_cast<FilTxMeta*>(TxStateManager::GetTx(id).release())};
 }
 
 std::string FilTxStateManager::GetTxPrefPathPrefix() {

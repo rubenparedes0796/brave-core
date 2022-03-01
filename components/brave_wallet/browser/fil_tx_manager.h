@@ -19,6 +19,8 @@ class TxService;
 class JsonRpcService;
 class KeyringService;
 class FilTransaction;
+class FilNonceTracker;
+class FilPendingTxTracker;
 
 class FilTxManager : public TxManager, public FilTxStateManager::Observer {
  public:
@@ -49,25 +51,32 @@ class FilTxManager : public TxManager, public FilTxStateManager::Observer {
       GetTransactionMessageToSignCallback callback) override;
 
   void Reset() override;
-  void OnGetNetworkNonce(const std::string& from,
-                         const std::string& to,
-                         const std::string& value,
-                         std::unique_ptr<FilTransaction> tx,
-                         AddUnapprovedTransactionCallback callback,
-                         uint256_t network_nonce,
-                         mojom::ProviderError error,
-                         const std::string& error_message);
+
+  void GetEstimatedGas(const std::string& from,
+                       std::unique_ptr<FilTransaction> tx,
+                       AddUnapprovedTransactionCallback callback);
   std::unique_ptr<FilTxMeta> GetTxForTesting(const std::string& tx_meta_id);
 
  private:
   friend class FilTxManagerUnitTest;
-  static bool ValidateTxData(const mojom::TxDataPtr& tx_data,
+  static bool ValidateTxData(const mojom::FilTxDataPtr& tx_data,
                              std::string* error);
   void AddUnapprovedTransaction(mojom::FilTxDataPtr tx_data,
                                 const std::string& from,
                                 AddUnapprovedTransactionCallback callback);
+  void ContinueAddUnapprovedTransaction(
+      const std::string& from,
+      std::unique_ptr<FilTransaction> tx,
+      AddUnapprovedTransactionCallback callback,
+      const std::string& gas_premium,
+      const std::string& gas_fee_cap,
+      uint64_t gas_limit,
+      mojom::ProviderError error,
+      const std::string& error_message);
 
   std::unique_ptr<FilTxStateManager> tx_state_manager_;
+  std::unique_ptr<FilNonceTracker> nonce_tracker_;
+  std::unique_ptr<FilPendingTxTracker> pending_tx_tracker_;
   base::WeakPtrFactory<FilTxManager> weak_factory_{this};
 };
 

@@ -4,13 +4,17 @@
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "brave/components/brave_wallet/browser/fil_tx_manager.h"
+#include <stdint.h>
+#include <string>
 
 #include <memory>
 
 #include "base/notreached.h"
-#include "brave/components/brave_wallet/browser/fil_tx_state_manager.h"
+#include "brave/components/brave_wallet/browser/fil_nonce_tracker.h"
+#include "brave/components/brave_wallet/browser/fil_pending_tx_tracker.h"
 #include "brave/components/brave_wallet/browser/fil_transaction.h"
 #include "brave/components/brave_wallet/browser/fil_tx_meta.h"
+#include "brave/components/brave_wallet/browser/fil_tx_state_manager.h"
 #include "brave/components/brave_wallet/browser/json_rpc_service.h"
 #include "brave/components/brave_wallet/common/fil_address.h"
 #include "brave/components/brave_wallet/common/hex_utils.h"
@@ -20,7 +24,7 @@
 namespace brave_wallet {
 
 // static
-bool FilTxManager::ValidateTxData(const mojom::TxDataPtr& tx_data,
+bool FilTxManager::ValidateTxData(const mojom::FilTxDataPtr& tx_data,
                                   std::string* error) {
   CHECK(error);
   // 'to' cannot be empty
@@ -50,7 +54,15 @@ FilTxManager::FilTxManager(TxService* tx_service,
                 tx_service,
                 json_rpc_service,
                 keyring_service,
-                prefs) {
+                prefs),
+      tx_state_manager_(
+          std::make_unique<FilTxStateManager>(prefs, json_rpc_service)),
+      nonce_tracker_(std::make_unique<FilNonceTracker>(tx_state_manager_.get(),
+                                                       json_rpc_service)),
+      pending_tx_tracker_(
+          std::make_unique<FilPendingTxTracker>(tx_state_manager_.get(),
+                                                json_rpc_service,
+                                                nonce_tracker_.get())) {
   tx_state_manager_->AddObserver(this);
 }
 
@@ -70,8 +82,7 @@ void FilTxManager::AddUnapprovedTransaction(
   }
 
   std::string error;
-  if (!tx_data->base_data ||
-      !FilTxManager::ValidateTxData(tx_data->base_data, &error)) {
+  if (!FilTxManager::ValidateTxData(tx_data, &error)) {
     std::move(callback).Run(false, "", error);
     return;
   }
@@ -84,36 +95,59 @@ void FilTxManager::AddUnapprovedTransaction(
     return;
   }
   auto tx_ptr = std::make_unique<FilTransaction>(*tx);
+  auto gas_limit = tx->gas_limit();
+  if (!gas_limit) {
+    GetEstimatedGas(from, std::move(tx_ptr), std::move(callback));
+  } else {
+    const std::string gas_premium = tx->gas_premium();
+    const std::string gas_fee_cap = tx->gas_fee_cap();
+    ContinueAddUnapprovedTransaction(
+        from, std::move(tx_ptr), std::move(callback), gas_premium, gas_fee_cap,
+        gas_limit, mojom::ProviderError::kSuccess, "");
+  }
+}
 
-  json_rpc_service_->GetTransactionCount(
-      from, mojom::CoinType::FIL,
-      base::BindOnce(&FilTxManager::OnGetNetworkNonce,
-                     weak_factory_.GetWeakPtr(), from, tx_data->base_data->to,
-                     tx_data->base_data->value, std::move(tx_ptr),
+void FilTxManager::GetEstimatedGas(const std::string& from,
+                                   std::unique_ptr<FilTransaction> tx,
+                                   AddUnapprovedTransactionCallback callback) {
+  const std::string gas_premium = tx->gas_premium();
+  const std::string gas_fee_cap = tx->gas_fee_cap();
+  auto gas_limit = tx->gas_limit();
+  uint64_t nonce = 0;  // tx->nonce().value();
+  const std::string value = tx->value();
+  // TODO(spylogsster): add code to get max fee
+  const std::string max_fee = "30000000000000";
+  auto to = tx->to().ToString();
+  json_rpc_service_->GetFilEstimateGas(
+      from, to, gas_premium, gas_fee_cap, gas_limit, nonce, max_fee, value,
+      base::BindOnce(&FilTxManager::ContinueAddUnapprovedTransaction,
+                     weak_factory_.GetWeakPtr(), from, std::move(tx),
                      std::move(callback)));
 }
 
-void FilTxManager::OnGetNetworkNonce(const std::string& from,
-                                     const std::string& to,
-                                     const std::string& value,
-                                     std::unique_ptr<FilTransaction> tx,
-                                     AddUnapprovedTransactionCallback callback,
-                                     uint256_t network_nonce,
-                                     mojom::ProviderError error,
-                                     const std::string& error_message) {
-  if (error != mojom::ProviderError::kSuccess) {
-    std::move(callback).Run(
-        false, "",
-        l10n_util::GetStringUTF8(
-            IDS_WALLET_ETH_SEND_TRANSACTION_GET_GAS_PRICE_FAILED));
-    return;
-  }
-  tx->set_nonce(network_nonce);
+void FilTxManager::ContinueAddUnapprovedTransaction(
+    const std::string& from,
+    std::unique_ptr<FilTransaction> tx,
+    AddUnapprovedTransactionCallback callback,
+    const std::string& gas_premium,
+    const std::string& gas_fee_cap,
+    uint64_t gas_limit,
+    mojom::ProviderError error,
+    const std::string& error_message) {
+  DLOG(INFO) << gas_premium;
+  DLOG(INFO) << gas_fee_cap;
+  DLOG(INFO) << gas_limit;
+  tx->set_gas_premium(gas_premium);
+  tx->set_fee_cap(gas_fee_cap);
+  tx->set_gas_limit(gas_limit);
 
-  std::move(callback).Run(
-      false, "",
-      l10n_util::GetStringUTF8(
-          IDS_WALLET_ETH_SEND_TRANSACTION_GET_GAS_PRICE_FAILED));
+  FilTxMeta meta(std::move(tx));
+  meta.set_id(TxMeta::GenerateMetaID());
+  meta.set_from(FilAddress::FromString(from).ToString());
+  meta.set_created_time(base::Time::Now());
+  meta.set_status(mojom::TransactionStatus::Unapproved);
+  tx_state_manager_->AddOrUpdateTx(meta);
+  std::move(callback).Run(true, meta.id(), "");
 }
 
 void FilTxManager::AddUnapprovedTransaction(

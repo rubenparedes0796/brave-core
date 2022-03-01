@@ -9,9 +9,9 @@
 #include <memory>
 #include <string>
 
-#include "brave/components/brave_wallet/browser/tx_state_manager.h"
 #include <utility>
 #include <vector>
+#include "brave/components/brave_wallet/browser/tx_state_manager.h"
 
 #include "base/gtest_prod_util.h"
 #include "brave/components/brave_wallet/browser/tx_state_manager.h"
@@ -38,15 +38,14 @@ class FilTxStateManager : public TxStateManager {
   FilTxStateManager(const FilTxStateManager&) = delete;
   FilTxStateManager operator=(const FilTxStateManager&) = delete;
 
+  std::unique_ptr<FilTxMeta> GetFilTx(const std::string& id);
 
  private:
   std::unique_ptr<TxMeta> ValueToTxMeta(const base::Value& value) override;
   std::string GetTxPrefPathPrefix() override;
-
   static base::Value TxMetaToValue(const TxMeta& meta);
 
  private:
-
   std::string chain_id_;
   std::string network_url_;
   base::WeakPtrFactory<FilTxStateManager> weak_factory_;

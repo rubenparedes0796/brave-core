@@ -31,45 +31,48 @@ class FilTransaction {
   static absl::optional<FilTransaction> FromTxData(
       const mojom::FilTxDataPtr& tx_data);
 
-  absl::optional<uint256_t> nonce() const { return nonce_; }
-  uint256_t gas_price() const { return gas_price_; }
-  uint256_t gas_limit() const { return gas_limit_; }
+  absl::optional<uint64_t> nonce() const { return nonce_; }
+  std::string gas_premium() const { return gas_premium_; }
+  std::string gas_fee_cap() const { return gas_fee_cap_; }
+  uint64_t gas_limit() const { return gas_limit_; }
   FilAddress to() const { return to_; }
-  uint256_t value() const { return value_; }
-  std::vector<uint8_t> data() const { return data_; }
+  std::string value() const { return value_; }
   uint256_t v() const { return v_; }
   std::vector<uint8_t> r() const { return r_; }
   std::vector<uint8_t> s() const { return s_; }
 
   void set_to(FilAddress to) { to_ = to; }
-  void set_value(uint256_t value) { value_ = value; }
-  void set_nonce(absl::optional<uint256_t> nonce) { nonce_ = nonce; }
-  void set_gas_price(uint256_t gas_price) { gas_price_ = gas_price; }
-  void set_gas_limit(uint256_t gas_limit) { gas_limit_ = gas_limit; }
-  void set_data(const std::vector<uint8_t>& data) { data_ = data; }
+  void set_value(std::string value) { value_ = value; }
+  void set_nonce(absl::optional<uint64_t> nonce) { nonce_ = nonce; }
+  void set_gas_premium(std::string gas_premium) { gas_premium_ = gas_premium; }
+  void set_fee_cap(std::string gas_fee_cap) { gas_fee_cap_ = gas_fee_cap; }
+  void set_gas_limit(uint64_t gas_limit) { gas_limit_ = gas_limit; }
+
+  std::string GetSignedTransaction() const;
+  bool IsSigned() const;
 
   virtual base::Value ToValue() const;
   static absl::optional<FilTransaction> FromValue(const base::Value& value);
 
  protected:
-  absl::optional<uint256_t> nonce_;
-  uint256_t gas_price_;
-  uint256_t gas_limit_;
+  absl::optional<uint64_t> nonce_;
+  std::string gas_premium_;
+  std::string gas_fee_cap_;
+  uint64_t gas_limit_;
   FilAddress to_;
-  uint256_t value_;
-  std::vector<uint8_t> data_;
+  std::string value_;
 
   uint256_t v_ = 0;
   std::vector<uint8_t> r_;
   std::vector<uint8_t> s_;
 
  protected:
-  FilTransaction(absl::optional<uint256_t> nonce,
-                 uint256_t gas_price,
-                 uint256_t gas_limit,
+  FilTransaction(absl::optional<uint64_t> nonce,
+                 const std::string& gas_premium,
+                 const std::string& gas_fee_cap,
+                 uint64_t gas_limit,
                  const FilAddress& to,
-                 uint256_t value,
-                 const std::vector<uint8_t>& data);
+                 const std::string& value);
 };
 
 }  // namespace brave_wallet

@@ -49,41 +49,40 @@ void AddUnapprovedTransactionSuccessCallback(bool* callback_called,
   *tx_meta_id = id;
 }
 
-
 }  // namespace
 
 class FilTxManagerUnitTest : public testing::Test {
  public:
-      FilTxManagerUnitTest()
+  FilTxManagerUnitTest()
       : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME),
         browser_context_(new content::TestBrowserContext()),
         shared_url_loader_factory_(
             base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
                 &url_loader_factory_)) {}
 
-    void SetUp() override {
-      feature_list_.InitAndEnableFeature(
-          brave_wallet::features::kBraveWalletFilecoinFeature);
+  void SetUp() override {
+    feature_list_.InitAndEnableFeature(
+        brave_wallet::features::kBraveWalletFilecoinFeature);
 
-      url_loader_factory_.SetInterceptor(base::BindLambdaForTesting(
-          [&](const network::ResourceRequest& request) {
-            url_loader_factory_.ClearResponses();
-            base::StringPiece request_string(request.request_body->elements()
-                                                ->at(0)
-                                                .As<network::DataElementBytes>()
-                                                .AsStringPiece());
-            absl::optional<base::Value> request_value =
-                base::JSONReader::Read(request_string);
-            std::string* method = request_value->FindStringKey("method");
-            ASSERT_TRUE(method);
+    url_loader_factory_.SetInterceptor(base::BindLambdaForTesting(
+        [&](const network::ResourceRequest& request) {
+          url_loader_factory_.ClearResponses();
+          base::StringPiece request_string(request.request_body->elements()
+                                               ->at(0)
+                                               .As<network::DataElementBytes>()
+                                               .AsStringPiece());
+          absl::optional<base::Value> request_value =
+              base::JSONReader::Read(request_string);
+          std::string* method = request_value->FindStringKey("method");
+          ASSERT_TRUE(method);
 
-            if (*method == "Filecoin.MpoolGetNonce") {
-              url_loader_factory_.AddResponse(
-                  request.url.spec(),
-                  "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\": 1 }");
-            } else if (*method == "Filecoin.GasEstimateMessageGas") {
-              url_loader_factory_.AddResponse(request.url.spec(),
-                                              R"(
+          if (*method == "Filecoin.MpoolGetNonce") {
+            url_loader_factory_.AddResponse(
+                request.url.spec(),
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\": 1 }");
+          } else if (*method == "Filecoin.GasEstimateMessageGas") {
+            url_loader_factory_.AddResponse(request.url.spec(),
+                                            R"(
                     {
                       jsonrpc: '2.0',
                       result: {
@@ -104,29 +103,28 @@ class FilTxManagerUnitTest : public testing::Test {
                       id: 1
                     }
                   )");
-            }
-          }));
-      user_prefs::UserPrefs::Set(browser_context_.get(), &prefs_);
-      brave_wallet::RegisterProfilePrefs(prefs_.registry());
-      json_rpc_service_.reset(
-          new JsonRpcService(shared_url_loader_factory_, &prefs_));
-      keyring_service_.reset(new KeyringService(&prefs_));
-      tx_service_.reset(new TxService(json_rpc_service_.get(),
-                                      keyring_service_.get(), &prefs_));
+          }
+        }));
+    user_prefs::UserPrefs::Set(browser_context_.get(), &prefs_);
+    brave_wallet::RegisterProfilePrefs(prefs_.registry());
+    json_rpc_service_.reset(
+        new JsonRpcService(shared_url_loader_factory_, &prefs_));
+    keyring_service_.reset(new KeyringService(&prefs_));
+    tx_service_.reset(new TxService(json_rpc_service_.get(),
+                                    keyring_service_.get(), &prefs_));
 
-      base::RunLoop run_loop;
-      json_rpc_service_->SetNetwork(
-          brave_wallet::mojom::kLocalhostChainId,
-          base::BindLambdaForTesting([&](bool success) {
-            EXPECT_TRUE(success);
-            run_loop.Quit();
-          }));
-      run_loop.Run();
-      keyring_service_->CreateWallet("testing123", base::DoNothing());
-      base::RunLoop().RunUntilIdle();
-      keyring_service_->AddAccount("Account 1", mojom::CoinType::FIL,
-                                   base::DoNothing());
-      base::RunLoop().RunUntilIdle();
+    base::RunLoop run_loop;
+    json_rpc_service_->SetNetwork(brave_wallet::mojom::kLocalhostChainId,
+                                  base::BindLambdaForTesting([&](bool success) {
+                                    EXPECT_TRUE(success);
+                                    run_loop.Quit();
+                                  }));
+    run_loop.Run();
+    keyring_service_->CreateWallet("testing123", base::DoNothing());
+    base::RunLoop().RunUntilIdle();
+    keyring_service_->AddAccount("Account 1", mojom::CoinType::FIL,
+                                 base::DoNothing());
+    base::RunLoop().RunUntilIdle();
   }
 
   std::string from() {
@@ -163,9 +161,8 @@ class FilTxManagerUnitTest : public testing::Test {
 TEST_F(FilTxManagerUnitTest,
        AddUnapprovedTransactionWithoutGasPriceAndGasLimit) {
   auto tx_data = mojom::FilTxData::New(
-      mojom::TxData::New("" /* nonce */, "" /* gas_price */, "" /* gas_limit */,
-                         "t1h4n7rphclbmwyjcp6jrdiwlfcuwbroxy3jvg33q", "0x11",
-                         std::vector<uint8_t>()),
+      "" /* nonce */, "" /* gas_premium */, "" /* gas_fee_cap */,
+      "" /* gas_limit */, "t1h4n7rphclbmwyjcp6jrdiwlfcuwbroxy3jvg33q", "0x11",
       mojom::kLocalhostChainId);
   bool callback_called = false;
   std::string tx_meta_id;
@@ -179,7 +176,6 @@ TEST_F(FilTxManagerUnitTest,
   EXPECT_TRUE(callback_called);
   auto tx_meta = fil_tx_manager()->GetTxForTesting(tx_meta_id);
   EXPECT_TRUE(tx_meta);
-
 }
 
 }  //  namespace brave_wallet

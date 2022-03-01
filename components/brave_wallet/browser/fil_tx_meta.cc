@@ -45,12 +45,10 @@ mojom::TransactionInfoPtr FilTxMeta::ToTransactionInfo() const {
   return mojom::TransactionInfo::New(
       id_, from_, tx_hash_,
       mojom::TxDataUnion::NewFilTxData(mojom::FilTxData::New(
-          mojom::TxData::New(
-              tx_->nonce() ? Uint256ValueToHex(tx_->nonce().value()) : "",
-              Uint256ValueToHex(tx_->gas_price()),
-              Uint256ValueToHex(tx_->gas_limit()), tx_->to().ToString(),
-              Uint256ValueToHex(tx_->value()), tx_->data()),
-          chain_id)),
+          tx_->nonce() ? base::NumberToString(*tx_->nonce()) : "",
+          tx_->gas_premium(), tx_->gas_fee_cap(),
+          base::NumberToString(tx_->gas_limit()), tx_->to().ToString(),
+          tx_->value(), chain_id)),
       status_, tx_type, tx_params, tx_args,
       base::Milliseconds(created_time_.ToJavaTime()),
       base::Milliseconds(submitted_time_.ToJavaTime()),
